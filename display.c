@@ -31,9 +31,9 @@ static list *wrap(char *text, int cols)
 
 	while (strlen(m) > cols) {
 		char *x = m + cols;
-		while (isspace(*x))
+		while (isspace(*x) && x >= m)
 			x--;
-		while (!isspace(*x))
+		while (!isspace(*x) && x >= m)
 			x--;
 		x++;
 		if (x == m) x = m + cols;
@@ -503,6 +503,8 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 				free(s);
 			}
 			free(t);
+			t = list_nth(tabs, cur_tab);
+			t->unseen = 0;
 			draw_tabs();
 			refresh();
 		}
