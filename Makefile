@@ -16,8 +16,9 @@ sound.h: au2h
 clean:
 	@rm -rf $(TARGET) au2h *.o core sound.h $(TARGET).tgz
 
-dist: clean
-	mkdir $(TARGET)
-	cp Makefile *.c main.h list.h Receive.au $(TARGET)
-	tar zcf $(TARGET).tgz $(TARGET)
-	rm -rf $(TARGET)
+dist:
+	rm -f $(TARGET).tgz
+	mkdir -p tmp/$(TARGET)
+	cp Makefile *.c main.h list.h Receive.au tmp/$(TARGET)
+	cd tmp && tar zcf ../$(TARGET).tgz $(TARGET)
+	rm -rf tmp
