@@ -36,6 +36,16 @@ static unsigned int list_length(list *l)
 	return c;
 }
 
+static void *list_nth(list *l, int n)
+{
+	while (l && n) {
+		l = l->next;
+		n--;
+	}
+	if (l) return l->data;
+	return NULL;
+}
+
 static list *list_append(list *l, void *data)
 {
 	list *s = l;
@@ -95,7 +105,6 @@ static void list_free(list *l)
 
 /** LIST UTIL (END) **/
 
-static unsigned int cursor_pos = 0;
 static unsigned int cursor_x = 0;
 static unsigned int cursor_y = 0;
 static char *entry_text = NULL;
@@ -141,7 +150,7 @@ static list *wrap(char *text, int cols)
 static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 {
 	list *draw = NULL;
-	int i = cursor_pos;
+	int i = strlen(entry_text);
 
 	int lines = b - t, cols = r - l;
 
@@ -179,7 +188,7 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 	move(cursor_y, cursor_x);
 }
 
-static void draw_tab()
+static void draw_tabs()
 {
 	int i = 0, pos = BLWID + 2;
 	list *t = tabs;
@@ -209,7 +218,7 @@ static void draw_tab()
 		pos += strlen(tab->title);
 		pos++;
 		mvaddch(0, pos, ACS_VLINE);
-		mvaddch(1, pos, ACS_BTEE);
+		mvaddch(1, pos++, ACS_BTEE);
 		pos++;
 		t = t->next;
 	}
@@ -259,7 +268,7 @@ void redraw_screen()
 	draw_blist();
 
 	/* draw the current tab */
-	draw_tab();
+	draw_tabs();
 
 	/* draw the text */
 	draw_entry();
@@ -295,63 +304,359 @@ void end_window()
 	endwin();
 }
 
+static char *nospaces(char *x)
+{
+	static char m[17];
+	int i = 0, j = 0;
+	while (x[i]) {
+		if (x[i] != ' ')
+			m[j++] = x[i];
+		i++;
+	}
+	m[j] = 0;
+	return m;
+}
+
+static struct tab *find_tab(char *who)
+{
+	char *m = nospaces(who);
+	list *l = tabs;
+	struct tab *t;
+
+	l = l->next;	/* skip system message tab */
+	while (l) {
+		t = l->data;
+		if (!strcasecmp(t->title, m))
+			return t;
+		l = l->next;
+	}
+
+	t = calloc(1, sizeof(struct tab));
+	t->title = strdup(m);
+	t->unseen = 0;
+	t->text = NULL;
+	tabs = list_append(tabs, t);
+	return t;
+}
+
+static void append_text(struct tab *t, char *x)
+{
+	char *m;
+
+	while ((m = strchr(x, '\n'))) {
+		*m = 0;
+		t->text = list_append(t->text, strdup(x));
+		*m = '\n';
+		x = m + 1;
+	}
+
+	t->text = list_append(t->text, strdup(x));
+}
+
+#define VALID_TAG(x)		if (!strncasecmp(string, x ">", strlen(x ">")))		\
+					return strlen(x) + 1;
+
+#define VALID_OPT_TAG(x)	if (!strncasecmp(string, x " ", strlen(x " "))) {	\
+					char *c = string + strlen(x " ");		\
+					char e = '"';					\
+					char quote = 0;					\
+					while (*c) {					\
+						if (*c == '"' || *c == '\'') {		\
+							if (quote && (*c == e))		\
+								quote = !quote;		\
+							else if (!quote) {		\
+								quote = !quote;		\
+								e = *c;			\
+							}				\
+						} else if (!quote && (*c == '>'))	\
+							break;				\
+						c++;					\
+					}						\
+					if (*c)						\
+						return c - string + 1;			\
+				}
+
+static int is_tag(char *string)
+{
+	if (!strchr(string, '>'))
+		return 0;
+
+	VALID_TAG("B");
+	VALID_TAG("BOLD");
+	VALID_TAG("/B");
+	VALID_TAG("/BOLD");
+	VALID_TAG("I");
+	VALID_TAG("ITALIC");
+	VALID_TAG("/I");
+	VALID_TAG("/ITALIC");
+	VALID_TAG("U");
+	VALID_TAG("UNDERLINE");
+	VALID_TAG("/U");
+	VALID_TAG("/UNDERLINE");
+	VALID_TAG("S");
+	VALID_TAG("STRIKE");
+	VALID_TAG("/S");
+	VALID_TAG("/STRIKE");
+	VALID_TAG("SUB");
+	VALID_TAG("/SUB");
+	VALID_TAG("SUP");
+	VALID_TAG("/SUP");
+	VALID_TAG("PRE");
+	VALID_TAG("/PRE");
+	VALID_TAG("TITLE");
+	VALID_TAG("/TITLE");
+	VALID_TAG("BR");
+	VALID_TAG("HR");
+	VALID_TAG("/FONT");
+	VALID_TAG("/A");
+	VALID_TAG("P");
+	VALID_TAG("/P");
+	VALID_TAG("H3");
+	VALID_TAG("/H3");
+	VALID_TAG("HTML");
+	VALID_TAG("/HTML");
+	VALID_TAG("BODY");
+	VALID_TAG("/BODY");
+	VALID_TAG("FONT");
+	VALID_TAG("HEAD");
+	VALID_TAG("HEAD");
+
+	VALID_OPT_TAG("HR");
+	VALID_OPT_TAG("FONT");
+	VALID_OPT_TAG("BODY");
+	VALID_OPT_TAG("A");
+	VALID_OPT_TAG("IMG");
+	VALID_OPT_TAG("P");
+	VALID_OPT_TAG("H3");
+
+	if (!strncasecmp(string, "!--", strlen("!--"))) {
+		char *e = strstr(string + strlen("!--"), "-->");
+		if (e)
+			return e - string + strlen("-->");
+	}
+
+	return 0;
+}
+
+static int is_amp(char *string, char *replace, int *length)
+{
+	if (!strncasecmp(string, "&amp;", 5)) {
+		*replace = '&';
+		*length = 5;
+	} else if (!strncasecmp(string, "&lt;", 4)) {
+		*replace = '<';
+		*length = 4;
+	} else if (!strncasecmp(string, "&gt;", 4)) {
+		*replace = '>';
+		*length = 4;
+	} else if (!strncasecmp(string, "&nbsp;", 6)) {
+		*replace = ' ';
+		*length = 6;
+	} else if (!strncasecmp(string, "&copy;", 6)) {
+		*replace = '©';
+		*length = 6;
+	} else if (!strncasecmp(string, "&quot;", 6)) {
+		*replace = '\"';
+		*length = 6;
+	} else if (!strncasecmp(string, "&reg;", 5)) {
+		*replace = '®';
+		*length = 5;
+	} else if (*(string + 1) == '#') {
+		uint pound = 0;
+		if (sscanf(string, "&#%u;", &pound) == 1) {
+			int l10 = 0;
+			while (pound /= 10) l10++;
+			if (*(string + 3 + l10) != ';')
+				return 0;
+			*replace = (char)pound;
+			*length = 2;
+			while (isdigit((int)string[*length])) (*length)++;
+			if (string[*length] == ';') (*length)++;
+		} else {
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
+static char *strip_html(char *x)
+{
+	static char *y = NULL;
+	int pos = 0, len;
+	char amp;
+
+	free(y);
+	y = malloc(strlen(x) + 1);
+
+	while (*x) {
+		if (*x == '<' && (len = is_tag(x + 1))) {
+			x++;
+			if (!strncasecmp(x, "BR>", 3))
+				y[pos++] = '\n';
+			x += len;
+		} else if (*x == '&' && is_amp(x, &amp, &len)) {
+			y[pos++] = amp;
+			x += len;
+		} else {
+			y[pos++] = *x++;
+		}
+	}
+
+	y[pos] = 0;
+	return y;
+}
+
+void got_im(char *from, char *msg, int away)
+{
+	struct tab *t = find_tab(from);
+
+	time_t tm = time(NULL);
+	struct tm *stm = localtime(&tm);
+
+	char *h = strip_html(msg);
+	char *x = malloc(strlen(from) + strlen(h) + 100);
+
+	if (!strncasecmp(h, "/me ", 4))
+		sprintf(x, "%02d:%02d:%02d %s*** %s %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
+				away ? "<AUTO> " : "", from, h + 4);
+	else
+		sprintf(x, "%02d:%02d:%02d %s%s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
+				away ? "<AUTO> " : "", from, h);
+
+	append_text(t, x);
+
+	if (list_nth(tabs, cur_tab) != t)
+		t->unseen = 1;
+
+	draw_tabs();
+	refresh();
+
+	free(x);
+}
+
+void got_err(char *from, int num, char *reason)
+{
+}
+
+void got_send_err(char *to, char *reason)
+{
+}
+
+static void process_command()
+{
+	char *x = entry_text;
+	while (*x == '/') x++;
+
+	if (!strncasecmp(x, "tab ", 4) && x[4]) {
+		find_tab(x + 4);
+		draw_tabs();
+		refresh();
+	}
+}
+
+static void send_message()
+{
+	struct tab *t;
+
+	time_t tm;
+	struct tm *stm;
+
+	char *h, *x;
+
+	if (!entry_text || !*entry_text)
+		return;
+
+	t = list_nth(tabs, cur_tab);
+
+	tm = time(NULL);
+	stm = localtime(&tm);
+
+	h = strip_html(entry_text);
+	x = malloc(strlen(si.screenname) + strlen(h) + 100);
+
+	aim_send_im(&si.sess, t->title, 0, entry_text);
+
+	if (!strncasecmp(h, "/me ", 4))
+		sprintf(x, "%02d:%02d:%02d *** %s %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
+				si.screenname, h + 4);
+	else
+		sprintf(x, "%02d:%02d:%02d %s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
+				si.screenname, h);
+
+	append_text(t, x);
+
+	draw_tabs();
+	refresh();
+
+	free(x);
+}
+
 static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 {
+	struct tab *t;
 	int c = getch();
 	switch (c) {
-	case 1:		/* ^A */
-		cursor_pos = 0;
-		//move(LINES - ENHEI + 1, BLWID + 1);
-		draw_entry();
-		refresh();
-		break;
 	case 3:		/* ^C */
 		if (cur_tab) {
-			list *l = tabs;
-			struct tab *t;
-			int i = 0;
-			while (i++ < cur_tab)
-				l = l->next;
-			t = l->data;
+			t = list_nth(tabs, cur_tab);
 			tabs = list_remove(tabs, t);
+			cur_tab--;
 			free(t->title);
-			list_free(t->text);
+			while (t->text) {
+				char *s = t->text->data;
+				t->text = list_remove(t->text, s);
+				free(s);
+			}
 			free(t);
+			draw_tabs();
+			refresh();
 		}
 		break;
 	case 4:		/* ^D */
 		end_window();
 		exit(0);
 		break;
-	case 5:		/* ^E */
-		cursor_pos = strlen(entry_text);
-		draw_entry();
-		refresh();
-		break;
 	case 9:		/* ^I, tab */
-		break;
-	case 11:	/* ^K */
-		entry_text[cursor_pos] = 0;
-		draw_entry();
+		cur_tab++;
+		if (cur_tab >= list_length(tabs))
+			cur_tab = 0;
+		t = list_nth(tabs, cur_tab);
+		t->unseen = 0;
+		draw_tabs();
 		refresh();
 		break;
 	case 12:	/* ^L */
 		redraw_screen();
 		break;
 	case 13:	/* ^M, enter */
+		if (cur_tab)
+			send_message();
+		else
+			process_command();
+		*entry_text = 0;
+		draw_entry();
+		refresh();
 		break;
 	case 21:	/* ^U */
-		memmove(entry_text, entry_text + cursor_pos, strlen(entry_text) - cursor_pos + 1);
-		cursor_pos = 0;
+		*entry_text = 0;
 		draw_entry();
 		refresh();
 		break;
 	case 23:	/* ^W */
+		c = strlen(entry_text) - 1;
+		while (c > 0 && isspace(entry_text[c])) c--;
+		while (c + 1 && !isspace(entry_text[c])) c--;
+		c++;
+		entry_text[c] = 0;
+		draw_entry();
+		refresh();
 		break;
 	case 127:	/* backspace */
 		if (*entry_text) {
 			entry_text[strlen(entry_text)-1] = 0;
-			cursor_pos--;
 			draw_entry();
 			refresh();
 		}
@@ -360,16 +665,8 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		if (isprint(c)) {
 			int l = strlen(entry_text);
 			entry_text = realloc(entry_text, l + 2);
-			if (cursor_pos == l) {
-				entry_text[l] = c;
-				entry_text[l + 1] = 0;
-				cursor_pos++;
-			} else {
-				char *p = entry_text + cursor_pos;
-				memmove(p + 1, p, l - cursor_pos + 1);
-				entry_text[cursor_pos] = c;
-				cursor_pos++;
-			}
+			entry_text[l] = c;
+			entry_text[l + 1] = 0;
 			draw_entry();
 			refresh();
 		}
@@ -408,6 +705,6 @@ void dvprintf(char *f, ...)
 	t->text = list_append(t->text, strdup(s));
 	if (cur_tab)
 		t->unseen = 1;
-	draw_tab();
+	draw_tabs();
 	refresh();
 }

@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include "main.h"
 
-static int defaults(struct session_info *si)
+static int defaults()
 {
 	char path[8192];
 	FILE *f;
@@ -23,7 +23,7 @@ static int defaults(struct session_info *si)
 	return 1;
 }
 
-int read_config(struct session_info *si)
+int read_config()
 {
 	struct stat sb;
 	char path[1024];
@@ -40,27 +40,27 @@ int read_config(struct session_info *si)
 	/* make sure the conf file exists and is a file */
 	sprintf(path, "%s/.%s/config", getenv("HOME"), PROG);
 	if (stat(path, &sb))
-		return defaults(si);
+		return defaults();
 	else if (!S_ISREG(sb.st_mode)) {
 		unlink(path);
-		return defaults(si);
+		return defaults();
 	} else {
 		FILE *f = fopen(path, "r");
 		char line[8192];
 		if (!f) {
 			unlink(path);
-			return defaults(si);
+			return defaults();
 		}
 		while (fgets(line, 8192, f)) {
 			line[strlen(line)-1] = 0;
 			if (!strncmp(line, "user ", 5)) {
-				si->screenname = strdup(line + 5);
+				si.screenname = strdup(line + 5);
 			} else if (!strncmp(line, "pass ", 5)) {
-				si->password = strdup(line + 5);
+				si.password = strdup(line + 5);
 			} else if (!strncmp(line, "auth ", 5)) {
-				si->authorizer = strdup(line + 5);
+				si.authorizer = strdup(line + 5);
 			} else if (!strncmp(line, "port ", 5)) {
-				si->port = atoi(line + 5);
+				si.port = atoi(line + 5);
 			}
 		}
 		fclose(f);

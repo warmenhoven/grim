@@ -7,6 +7,35 @@
 #define FLAP_LEN 6
 #define MAXSNAC 8192
 
+static char *msgerrreasons[] = {
+	"Invalid error", 
+	"Invalid SNAC",
+	"Rate to host",
+	"Rate to client",
+	"Not logged on",
+	"Service unavailable",
+	"Service not defined",
+	"Obsolete SNAC",
+	"Not supported by host",
+	"Not supported by client",
+	"Refused by client",
+	"Reply too big",
+	"Responses lost",
+	"Request denied",
+	"Busted SNAC payload",
+	"Insufficient rights",
+	"In local permit/deny",
+	"Too evil (sender)",
+	"Too evil (receiver)",
+	"User temporarily unavailable",
+	"No match", 
+	"List overflow",
+	"Request ambiguous",
+	"Queue full",
+	"Not while on AOL",
+};
+static int msgerrreasonslen = 25;
+
 static int aim_nbio_addflapvec(nbio_fd_t *fdt, unsigned char *oldbuf)
 {
 	unsigned char *buf;
@@ -310,7 +339,6 @@ static int cb_aim_icbmparaminfo(aim_session_t *sess, aim_frame_t *fr, ...)
 
 static int cb_aim_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	struct session_info *si = (struct session_info *)sess->aux_data;
 	va_list ap;
 	unsigned short code;
 	char *msg = NULL;
@@ -322,7 +350,7 @@ static int cb_aim_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	dvprintf("connerr: Code 0x%04x: %s", code, msg);
 
-	si->killme = 1;
+	si.killme = 1;
 
 	return 1;
 }
@@ -336,6 +364,8 @@ static int cb_aim_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 	info = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
+	/* XXX */
+
 	return 1;
 }
 
@@ -348,16 +378,47 @@ static int cb_aim_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 	info = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
+	/* XXX */
+
 	return 1;
 }
 
 static int cb_aim_incomingim(aim_session_t *sess, aim_frame_t *fr, ...)
 {
+	fu16_t channel;
+	aim_userinfo_t *userinfo;
+	struct aim_incomingim_ch1_args *args;
+	va_list ap;
+
+	va_start(ap, fr);
+	channel = (fu16_t)va_arg(ap, unsigned int);
+	userinfo = va_arg(ap, aim_userinfo_t *);
+
+	if (channel != 1) {
+		va_end(ap);
+		dvprintf("unsupported channel 0x%04x\n", channel);
+		return 1;
+	}
+
+	args = va_arg(ap, struct aim_incomingim_ch1_args *);
+	va_end(ap);
+
+	got_im(userinfo->sn, args->msg, args->icbmflags & AIM_IMFLAGS_AWAY);
+
 	return 1;
 }
 
 static int cb_aim_parse_misses(aim_session_t *sess, aim_frame_t *fr, ...)
 {
+	static char *missreason[] = {
+		"Invalid (0)",
+		"Message too large", 
+		"Rate exceeded",
+		"Evil Sender",
+		"Evil Receiver"
+	};
+	static int mrlen = 5;
+
 	va_list ap;
 	fu16_t chan, nummissed, reason; 
 	aim_userinfo_t *userinfo;
@@ -368,6 +429,8 @@ static int cb_aim_parse_misses(aim_session_t *sess, aim_frame_t *fr, ...)
 	nummissed = (fu16_t)va_arg(ap, unsigned int);
 	reason = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
+
+	got_err(userinfo->sn, nummissed, reason < mrlen ? missreason[reason] : "unknown reason");
 
 	return 1;
 }
@@ -382,6 +445,8 @@ static int cb_aim_parse_msgerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	reason = (fu16_t)va_arg(ap, unsigned int);
 	destn = va_arg(ap, char *);
 	va_end(ap);
+
+	got_send_err(destn, reason < msgerrreasonslen ? msgerrreasons[reason] : "unknown reason");
 
 	return 1;
 }
@@ -424,6 +489,8 @@ static int cb_aim_ratechange(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	va_end(ap);
 
+	/* XXX */
+
 	return 1;
 }
 
@@ -438,12 +505,13 @@ static int cb_aim_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
+	/* XXX */
+
 	return 1;
 }
 
 static int cb_aim_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	struct session_info *si = (struct session_info *)sess->aux_data;
 	va_list ap;
 	struct aim_authresp_info *info;
 	aim_conn_t *bosconn;
@@ -463,7 +531,7 @@ static int cb_aim_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 		dvprintf("aim: Login Error Code 0x%04x", info->errorcode);
 		dvprintf("aim: Error URL: %s", info->errorurl);
 
-		si->killme = 1;
+		si.killme = 1;
 
 		return 1;
 	}
@@ -477,19 +545,19 @@ static int cb_aim_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	if (!(bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, info->bosip))) {
 		dvprintf("aim: could not connect to BOS: internal error");
-		si->killme = 1;
+		si.killme = 1;
 		return 1;
 	} else if ((bosconn->fd == -1) ||
 			(bosconn->status & AIM_CONN_STATUS_CONNERR)) {
 		dvprintf("aim: could not connect to BOS");
-		si->killme = 1;
+		si.killme = 1;
 		return 1;
 	}
 
 	if (!(bosfdt = addaimconn(bosconn))) {
 		dvprintf("addaimconn failed for BOS");
 		aim_conn_kill(sess, &bosconn);
-		si->killme = 1;
+		si.killme = 1;
 		return 1;
 	}
 
@@ -513,7 +581,6 @@ static int cb_aim_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 
 static int cb_aim_parse_login(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	struct session_info *si = (struct session_info *)sess->aux_data;
 	struct client_info_s info = AIM_CLIENTINFO_KNOWNGOOD;
 	char *key;
 	va_list ap;
@@ -522,28 +589,26 @@ static int cb_aim_parse_login(aim_session_t *sess, aim_frame_t *fr, ...)
 	key = va_arg(ap, char *);
 	va_end(ap);
 
-	aim_send_login(sess, fr->conn, si->screenname, si->password, &info, key);
+	aim_send_login(sess, fr->conn, si.screenname, si.password, &info, key);
 
 	return 1;
 }
 
-int init_faim(struct session_info *si)
+int init_faim()
 {
 	aim_conn_t *authconn;
 
-	aim_session_init(&si->sess, 0, 0);
-	aim_setdebuggingcb(&si->sess, debugcb); /* still needed even if debuglevel = 0 ! */
+	aim_session_init(&si.sess, 0, 0);
+	aim_setdebuggingcb(&si.sess, debugcb); /* still needed even if debuglevel = 0 ! */
 
-	aim_tx_setenqueue(&si->sess, AIM_TX_USER, &aim_tx_enqueue__nbio);
+	aim_tx_setenqueue(&si.sess, AIM_TX_USER, &aim_tx_enqueue__nbio);
 
-	si->sess.aux_data = (void *)si;
+	dvprintf("connecting to %s", si.authorizer);
 
-	dvprintf("connecting to %s", si->authorizer);
-
-	if (!(authconn = aim_newconn(&si->sess, AIM_CONN_TYPE_AUTH, si->authorizer))) {
+	if (!(authconn = aim_newconn(&si.sess, AIM_CONN_TYPE_AUTH, si.authorizer))) {
 
 		dvprintf("faim: internal connection error");
-		aim_session_kill(&si->sess);
+		aim_session_kill(&si.sess);
 		return -1;
 
 	} else if (authconn->fd == -1) {
@@ -554,23 +619,23 @@ int init_faim(struct session_info *si)
 			dvprintf("could not connect to authorizer");
 		}
 
-		aim_conn_kill(&si->sess, &authconn);
-		aim_session_kill(&si->sess);
+		aim_conn_kill(&si.sess, &authconn);
+		aim_session_kill(&si.sess);
 
 		return -1;
 	} 
 
 	if (!addaimconn(authconn)) {
 		dvprintf("addaimconn failed");
-		aim_conn_kill(&si->sess, &authconn);
-		aim_session_kill(&si->sess);
+		aim_conn_kill(&si.sess, &authconn);
+		aim_session_kill(&si.sess);
 		return -1;
 	}
 
-	aim_conn_addhandler(&si->sess, authconn, 0x0017, 0x0007, cb_aim_parse_login, 0);
-	aim_conn_addhandler(&si->sess, authconn, 0x0017, 0x0003, cb_aim_parse_authresp, 0);
+	aim_conn_addhandler(&si.sess, authconn, 0x0017, 0x0007, cb_aim_parse_login, 0);
+	aim_conn_addhandler(&si.sess, authconn, 0x0017, 0x0003, cb_aim_parse_authresp, 0);
 
-	aim_request_login(&si->sess, authconn, si->screenname);
+	aim_request_login(&si.sess, authconn, si.screenname);
 
 	return 0;
 }
