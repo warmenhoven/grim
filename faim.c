@@ -625,15 +625,18 @@ static int cb_parse_login(aim_session_t *sess, aim_frame_t *fr, ...)
 int init_server()
 {
 	aim_conn_t *authconn;
+	char authstr[16384];
 
 	aim_session_init(&si.sess, 0, 0);
 	aim_setdebuggingcb(&si.sess, debugcb); /* still needed even if debuglevel = 0 ! */
 
 	aim_tx_setenqueue(&si.sess, AIM_TX_USER, &aim_tx_enqueue__nbio);
 
-	dvprintf("aim: connecting to %s", si.authorizer);
+	sprintf(authstr, "%s:%d", si.authorizer, si.port);
 
-	if (!(authconn = aim_newconn(&si.sess, AIM_CONN_TYPE_AUTH, si.authorizer))) {
+	dvprintf("aim: connecting to %s", authstr);
+
+	if (!(authconn = aim_newconn(&si.sess, AIM_CONN_TYPE_AUTH, authstr))) {
 		dvprintf("faim: internal connection error");
 		aim_session_kill(&si.sess);
 		return -1;
