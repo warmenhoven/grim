@@ -118,6 +118,8 @@ struct tab {
 static list *tabs = NULL;
 static unsigned int cur_tab = 0;
 
+static int sound = 1;
+
 static void draw_blist()
 {
 	/* XXX */
@@ -534,7 +536,7 @@ void got_im(char *from, char *msg, int away)
 	draw_tabs();
 	refresh();
 
-	play();
+	if (sound) play();
 }
 
 static void process_command()
@@ -548,6 +550,12 @@ static void process_command()
 		refresh();
 	} else if (!strncasecmp(x, "info ", 5) && x[5]) {
 		aim_getinfo(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 5, AIM_GETINFO_GENERALINFO);
+	} else if (!strcasecmp(x, "sound off")) {
+		sound = 0;
+	} else if (!strcasecmp(x, "sound on")) {
+		sound = 1;
+	} else if (!strcasecmp(x, "sound")) {
+		dvprintf("sound is %s", sound ? "on" : "off");
 	}
 }
 
