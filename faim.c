@@ -499,7 +499,7 @@ static int cb_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 		if (userinfo->idletime)
 			dvprintf("%s: idletime: %d minutes", userinfo->sn, userinfo->idletime);
 		if (aim_userinfo_warnlevel(userinfo))
-			dvprintf("%s: warnlevel: %f", userinfo->sn, aim_userinfo_warnlevel(userinfo));
+			dvprintf("%s: warnlevel: %.2f", userinfo->sn, aim_userinfo_warnlevel(userinfo));
 		dvprintf("%s: onlinesince: %s", userinfo->sn, buf);
 		if (prof && *prof) dvprintf("%s:\n%s", userinfo->sn, prof);
 
@@ -507,6 +507,39 @@ static int cb_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 			aim_getinfo(sess, fr->conn, userinfo->sn, AIM_GETINFO_AWAYMESSAGE);
 	} else
 		dvprintf("%s:\n%s", userinfo->sn, prof);
+
+	return 1;
+}
+
+static int cb_parse_searcherror(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	char *address;
+
+	va_start(ap, fr);
+	address = va_arg(ap, char *);
+	va_end(ap);
+
+	dvprintf("No results found for email address %s", address);
+
+	return 1;
+}
+
+static int cb_parse_searchreply(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	char *address, *SNs;
+	int i, num;
+
+	va_start(ap, fr);
+	address = va_arg(ap, char *);
+	num = va_arg(ap, int);
+	SNs = va_arg(ap, char *);
+	va_end(ap);
+
+	dvprintf("%s has the following screen names:", address);
+	for (i = 0; i < num; i++)
+		dvprintf("%s", &SNs[i * (MAXSNLEN + 1)]);
 
 	return 1;
 }
@@ -565,6 +598,9 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x000f, cb_parse_ssinodata, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, cb_parse_oncoming, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, cb_parse_offgoing, 0);
+
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOK, AIM_CB_LOK_ERROR, cb_parse_searcherror, 0);
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOK, 0x0003, cb_parse_searchreply, 0);
 
 	aim_sendcookie(sess, bosconn, info->cookie);
 

@@ -37,6 +37,7 @@ struct group {
 struct buddy {
 	char *name;
 	int   state;
+	int   stalk;
 };
 
 static list *pals = NULL;
@@ -131,6 +132,7 @@ void add_buddy(char *name, short gid)
 	if ((int)strlen(b->name) >= max_blwid)
 		max_blwid = strlen(b->name) + 1;
 	b->state = 0;
+	b->stalk = 0;
 	if (notfound) {
 		l = notfound;
 		while (l) {
@@ -167,6 +169,15 @@ void buddy_state(char *name, int state)
 				found = 1;
 				if (strcmp(b->name, nospaces(name)))
 					strcpy(b->name, nospaces(name));
+				if (b->stalk) {
+					time_t tm = time(NULL);
+					struct tm *stm = localtime(&tm);
+
+					dvprintf("%s %s at %d/%d %d:%d:%d", b->name,
+						 state ? "online" : "offline",
+						 stm->tm_mon, stm->tm_mday,
+						 stm->tm_hour, stm->tm_min, stm->tm_sec);
+				}
 			}
 			m = m->next;
 		}
@@ -581,12 +592,31 @@ static void process_command()
 		refresh();
 	} else if (!strncasecmp(x, "info ", 5) && x[5]) {
 		aim_getinfo(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 5, AIM_GETINFO_GENERALINFO);
+	} else if (!strncasecmp(x, "stalk ", 6) && x[6]) {
+		list *l = pals;
+		while (l) {
+			struct group *g = l->data;
+			list *m = g->members;
+			while (m) {
+				struct buddy *b = m->data;
+				if (!strcasecmp(b->name, nospaces(x + 6))) {
+					b->stalk = !b->stalk;
+					dvprintf("%sstalking %s", b->stalk ? "" : "not ", b->name);
+					return;
+				}
+				m = m->next;
+			}
+			l = l->next;
+		}
+		dvprintf("stalk who?");
 	} else if (!strcasecmp(x, "sound off")) {
 		sound = 0;
 	} else if (!strcasecmp(x, "sound on")) {
 		sound = 1;
 	} else if (!strcasecmp(x, "sound")) {
 		dvprintf("sound is %s", sound ? "on" : "off");
+	} else if (!strncasecmp(x, "search ", 7) && x[7]) {
+		aim_usersearch_address(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 7);
 	} else if (!strcasecmp(x, "help")) {
 		dvprintf("No help for you! Read the source! NEXT!");
 	}
