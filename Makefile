@@ -44,6 +44,6 @@ clean:
 dist:
 	rm -f $(TARGET).tgz
 	mkdir -p tmp/$(TARGET)
-	cp Makefile *.c main.h list.h Receive.au grim.1 tmp/$(TARGET)
+	cp Makefile *.c main.h list.h xml.h Receive.au grim.1 tmp/$(TARGET)
 	cd tmp && tar zcf ../$(TARGET).tgz $(TARGET)
 	rm -rf tmp
