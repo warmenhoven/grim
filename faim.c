@@ -144,7 +144,6 @@ static int aim_callback(void *nbv, int event, nbio_fd_t *fdt)
 		return 0;
 
 	} else if ((event == NBIO_EVENT_ERROR) || (event == NBIO_EVENT_EOF)) {
-
 		dvprintf("connection error! (EVENT_%s)", (event == NBIO_EVENT_ERROR) ? "ERROR" : "EOF");
 
 		aim_conn_kill(sess, &conn);
@@ -471,8 +470,7 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 		return 1;
 	}
 
-	dvprintf("aim: Reg status: %2d / Associated email: %s / BOS IP: %s", 
-			 info->regstatus, info->email, info->bosip);
+	dvprintf("aim: Associated email: %s / BOS IP: %s", info->email, info->bosip);
 
 	authfdt = nbio_getfdt(&gnb, fr->conn->fd);
 	aim_conn_kill(sess, &fr->conn);
@@ -533,7 +531,7 @@ int init_faim()
 
 	aim_tx_setenqueue(&si.sess, AIM_TX_USER, &aim_tx_enqueue__nbio);
 
-	dvprintf("connecting to %s", si.authorizer);
+	dvprintf("aim: connecting to %s", si.authorizer);
 
 	if (!(authconn = aim_newconn(&si.sess, AIM_CONN_TYPE_AUTH, si.authorizer))) {
 		dvprintf("faim: internal connection error");
