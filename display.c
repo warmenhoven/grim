@@ -30,6 +30,7 @@ static unsigned int cur_tab = 0;
 static int sound = 1;
 static int newlines = 1;
 static int print_anyway = 0;
+static int sp[2];
 
 struct group {
 	char *name;
@@ -825,6 +826,10 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 			refresh();
 		}
 		break;
+	case KEY_RESIZE:
+		clear();
+		redraw_screen();
+		break;
 	default:
 		if (isprint(c)) {
 			ADD_CHAR(c);
@@ -842,12 +847,11 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	return 0;
 }
 
-static int watch_stdin()
+static int watch_fd(int fd, nbio_handler_t handler)
 {
 	nbio_fd_t *fdt;
-	int fl;
 
-	if (!(fdt = nbio_addfd(&gnb, NBIO_FDTYPE_STREAM, 0, 0, stdin_ready, NULL, 0, 0))) {
+	if (!(fdt = nbio_addfd(&gnb, NBIO_FDTYPE_STREAM, fd, 0, handler, NULL, 0, 0))) {
 		fprintf(stderr, "Couldn't read stdin\n");
 		return 1;
 	}
@@ -856,22 +860,34 @@ static int watch_stdin()
 		return 1;
 	}
 
-	fl = fcntl(1, F_GETFL);
-	fl ^= O_NONBLOCK;
-	fcntl(1, F_SETFL, fl);
+	return 0;
+}
 
+static int sigwinch_redraw(void *nbv, int event, nbio_fd_t *fdt)
+{
+	char c;
+	read(sp[0], &c, 1);
+	endwin();
+	initscr();
+	clear();
+	redraw_screen();
 	return 0;
 }
 
 static void sigwinch(int sig)
 {
+	char c = 0;
+	write(sp[1], &c, 1);
 	endwin();
+	initscr();
+	clear();
 	redraw_screen();
 }
 
 int init_window()
 {
 	struct tab *tab;
+	int fl;
 
 	initscr();
 	keypad(stdscr, TRUE);
@@ -889,9 +905,21 @@ int init_window()
 
 	redraw_screen();
 
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp))
+		return 1;
+	if (watch_fd(sp[0], sigwinch_redraw))
+		return 1;
+	if (watch_fd(0, stdin_ready))
+		return 1;
+
+	/* if we set stdin to nonblock then we need to set stdout to block */
+	fl = fcntl(1, F_GETFL);
+	fl ^= O_NONBLOCK;
+	fcntl(1, F_SETFL, fl);
+
 	signal(SIGWINCH, sigwinch);
 
-	return watch_stdin();
+	return 0;
 }
 
 void end_window()
