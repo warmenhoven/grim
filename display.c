@@ -6,7 +6,7 @@
 #include "main.h"
 #include "list.h"
 
-#define BLWID 13
+#define BLWID 14
 #define ENHEI 4
 
 static unsigned int cursor_x = 0;
@@ -53,21 +53,31 @@ static char *nospaces(char *x)
 
 static void draw_blist()
 {
-	int pos = 0;
+	int pos = 0, i, j;
 	list *p = pals;
-	while (pos < COLS) {
-		int i;
-		for (i = 0; i < BLWID; i++)
-			mvaddch(pos, i, ' ');
-		pos++;
-	}
-	pos = 0;
+	for (i = 0; i < COLS; i++)
+		for (j = 0; j < BLWID; j++)
+			mvaddch(i, j, ' ');
 	while (p) {
 		struct group *g = p->data;
 		list *m = g->members;
 		while (m) {
 			struct buddy *b = m->data;
 			if (b->state) {
+				mvaddstr(pos++, 0, b->name);
+			}
+			m = m->next;
+		}
+		p = p->next;
+	}
+	pos++;
+	p = pals;
+	while (p) {
+		struct group *g = p->data;
+		list *m = g->members;
+		while (m) {
+			struct buddy *b = m->data;
+			if (!b->state) {
 				mvaddstr(pos++, 0, b->name);
 			}
 			m = m->next;
@@ -131,10 +141,8 @@ void add_buddy(char *name, short gid)
 		}
 	}
 	g->members = list_append(g->members, b);
-	if (redraw) {
-		draw_blist();
-		refresh();
-	}
+	draw_blist();
+	refresh();
 }
 
 void buddy_state(char *name, int state)
@@ -149,6 +157,8 @@ void buddy_state(char *name, int state)
 			if (!strcasecmp(b->name, nospaces(name)) && b->state != state) {
 				b->state = state;
 				found = 1;
+				if (strcmp(b->name, nospaces(name)))
+					strcpy(b->name, nospaces(name));
 			}
 			m = m->next;
 		}
@@ -237,7 +247,7 @@ static void draw_tabs()
 	struct tab *ct = NULL;
 
 	/* draw the horizontal line separating the tabs from the view */
-	mvhline(1, BLWID + 1, ACS_HLINE, 100);
+	mvhline(1, BLWID + 1, ACS_HLINE, COLS - BLWID);
 	mvaddch(1, BLWID, ACS_LTEE);
 
 	/* clear the old titles */
@@ -301,10 +311,10 @@ static void draw_entry()
 void redraw_screen()
 {
 	/* draw the vertical line */
-	mvvline(0, BLWID, ACS_VLINE, 100);
+	mvvline(0, BLWID, ' ' /* ACS_VLINE */, LINES);
 
 	/* now the horizontal one separating the view from the entry */
-	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, 100);
+	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, COLS - BLWID);
 	mvaddch(LINES - ENHEI, BLWID, ACS_LTEE);
 
 	draw_blist();
@@ -583,6 +593,8 @@ static void process_command()
 		sound = 1;
 	} else if (!strcasecmp(x, "sound")) {
 		dvprintf("sound is %s", sound ? "on" : "off");
+	} else if (!strcasecmp(x, "help")) {
+		dvprintf("No help for you! Read the source! NEXT!");
 	}
 }
 
