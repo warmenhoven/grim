@@ -767,6 +767,24 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		draw_entry();
 		refresh();
 		break;
+	case 176:	/* M-0 */
+	case 177:	/* M-1 */
+	case 178:	/* M-2 */
+	case 179:	/* M-3 */
+	case 180:	/* M-4 */
+	case 181:	/* M-5 */
+	case 182:	/* M-6 */
+	case 183:	/* M-7 */
+	case 184:	/* M-8 */
+	case 185:	/* M-9 */
+		if (c - 176 < list_length(tabs)) {
+			cur_tab = c - 176;
+			t = list_nth(tabs, cur_tab);
+			t->unseen = 0;
+			draw_tabs();
+			refresh();
+		}
+		break;
 	default:
 		if (isprint(c)) {
 			int l = strlen(entry_text);
