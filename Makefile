@@ -1,14 +1,21 @@
-LDLIBS = -lcurses -lfaim -lnbio -lesd
+LDLIBS = -lcurses -lfaim -lnbio # -lesd
 CFLAGS += -g -I/usr/include/libfaim -I/usr/include/libnbio -Wall
 
-OBJS = config.o display.o faim.o list.o main.o sound.o
+OBJS = config.o display.o faim.o list.o main.o
+
+# if you want sound uncomment these three lines
+#LDLIBS += -lesd
+#CFLAGS += -DSOUND
+#OBJS += sound.o
 
 TARGET = grim
 
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) $(LDLIBS) -o $@
 
-$(OBJS): main.h list.h sound.h
+$(OBJS): main.h list.h
+
+sound.o: sound.h
 
 sound.h: au2h
 	./au2h Receive.au sound.h

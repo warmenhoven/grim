@@ -35,6 +35,10 @@ extern void end_window();
 
 extern void got_im(char *, char *, int);
 
+#ifdef SOUND
 extern void play();
+#else
+#define play()
+#endif
 
 #endif
