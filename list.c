@@ -4,7 +4,6 @@
 list *list_new(void *data)
 {
 	list *l = malloc(sizeof(list));
-	l->prev = NULL;
 	l->next = NULL;
 	l->data = data;
 	return l;
@@ -40,7 +39,6 @@ list *list_append(list *l, void *data)
 
 	while (s->next) s = s->next;
 	s->next = list_new(data);
-	s->next->prev = s;
 
 	return l;
 }
@@ -49,8 +47,6 @@ list *list_prepend(list *l, void *data)
 {
 	list *s = list_new(data);
 	s->next = l;
-	if (l)
-		l->prev = s;
 	return s;
 }
 
@@ -61,8 +57,6 @@ list *list_remove(list *l, void *data)
 	if (!s) return NULL;
 	if (s->data == data) {
 		p = s->next;
-		if (p)
-			p->prev = NULL;
 		free(s);
 		return p;
 	}
@@ -71,12 +65,10 @@ list *list_remove(list *l, void *data)
 		s = s->next;
 		if (s->data == data) {
 			p->next = s->next;
-			if (p->next)
-				p->next->prev = p;
 			free(s);
 			return l;
 		}
-	} 
+	}
 	return l;
 }
 

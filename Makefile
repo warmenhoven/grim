@@ -1,5 +1,5 @@
 LDLIBS = -lcurses -lfaim -lnbio -lesd
-CFLAGS += -g -I/usr/include/libfaim -I/usr/local/include/libnbio -Wall
+CFLAGS += -g -I/usr/include/libfaim -I/usr/include/libnbio -Wall
 
 OBJS = config.o display.o faim.o list.o main.o sound.o
 

@@ -332,7 +332,7 @@ static int cb_incomingim(aim_session_t *sess, aim_frame_t *fr, ...)
 static int cb_parse_err(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	static char *errs[] = {
-		"Invalid error", 
+		"Invalid error",
 		"Invalid SNAC",
 		"Rate to host",
 		"Rate to client",
@@ -352,7 +352,7 @@ static int cb_parse_err(aim_session_t *sess, aim_frame_t *fr, ...)
 		"Too evil (sender)",
 		"Too evil (receiver)",
 		"User temporarily unavailable",
-		"No match", 
+		"No match",
 		"List overflow",
 		"Request ambiguous",
 		"Queue full",
@@ -361,8 +361,8 @@ static int cb_parse_err(aim_session_t *sess, aim_frame_t *fr, ...)
 	static int errlen = 25;
 
 	va_list ap;
-	char *destn; 
-	fu16_t reason; 
+	char *destn;
+	fu16_t reason;
 
 	va_start(ap, fr);
 	reason = (fu16_t)va_arg(ap, unsigned int);
@@ -523,7 +523,7 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_end(ap);
 
 	dvprintf("aim: screen name: %s", info->sn);
-	
+
 	if (info->errorcode || !info->bosip || !info->cookie) {
 		si.killme = 1;
 		return 1;
@@ -612,7 +612,7 @@ int init_faim()
 		aim_session_kill(&si.sess);
 
 		return -1;
-	} 
+	}
 
 	if (!addaimconn(authconn)) {
 		aim_conn_kill(&si.sess, &authconn);

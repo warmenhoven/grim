@@ -2,7 +2,6 @@
 #define list_h
 
 typedef struct _list {
-	struct _list *prev;
 	struct _list *next;
 	void *data;
 } list;

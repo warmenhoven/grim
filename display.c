@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
-#include <curses.h>
 #include <ctype.h>
+#include <curses.h>
 #include <string.h>
 #include <time.h>
-#include "main.h"
 #include "list.h"
+#include "main.h"
 
 static int max_blwid = -1;
 static int BLWID = -1;
@@ -211,12 +211,12 @@ static list *append_text(list *l, char *x)
 
 	while ((m = strchr(x, '\n'))) {
 		*m = 0;
-		l = list_append(l, strdup(x));
+		l = list_prepend(l, strdup(x));
 		*m = '\n';
 		x = m + 1;
 	}
 
-	l = list_append(l, strdup(x));
+	l = list_prepend(l, strdup(x));
 	return l;
 }
 
@@ -226,26 +226,27 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 
 	int lines = b - t, cols = r - l;
 
-	list *last = lst;
-	if (last) while (last->next) last = last->next;
-
-	while (last && lines > 0) {
-		list *newlines = wrap(last->data, cols);
+	while (lst && lines > 0) {
+		list *newlines = wrap(lst->data, cols);
 		int len = list_length(newlines);
 		list *n = newlines;
-		while (len-- && lines-- > 0) {
+		while (len-- > 0 && lines-- > 0) {
 			draw = list_prepend(draw, n->data);
 			n = n->next;
 		}
+		while (len-- > 0) {
+			free(n->data);
+			n = n->next;
+		}
 		list_free(newlines);
-		last = last->prev;
+		lst = lst->next;
 	}
 
 	while (draw) {
 		char *d = draw->data;
-		int i = strlen(draw->data);
-		mvaddstr(t++, l, draw->data);
-		draw = list_remove(draw, draw->data);
+		int i = strlen(d);
+		mvaddstr(t++, l, d);
+		draw = list_remove(draw, d);
 		if (cursor) {
 			cursor_x = BLWID + 1 + i;
 			cursor_y = t - 1;
@@ -263,7 +264,7 @@ static void draw_tabs()
 	struct tab *ct = NULL;
 
 	/* draw the horizontal line separating the tabs from the view */
-	mvhline(1, BLWID + 1, ACS_HLINE, COLS - BLWID);
+	mvhline(1, BLWID + 1, ACS_HLINE, COLS - BLWID - 1);
 	mvaddch(1, BLWID, ACS_LTEE);
 
 	/* clear the old titles */
@@ -330,7 +331,7 @@ void redraw_screen()
 	mvvline(0, BLWID, ' ' /* ACS_VLINE */, LINES);
 
 	/* now the horizontal one separating the view from the entry */
-	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, COLS - BLWID);
+	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, COLS - BLWID - 1);
 	mvaddch(LINES - ENHEI, BLWID, ACS_LTEE);
 
 	draw_blist();
@@ -681,6 +682,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		refresh();
 		break;
 	case 12:	/* ^L */
+		clear();
 		redraw_screen();
 		break;
 	case 13:	/* ^M, enter */
@@ -702,6 +704,15 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	case 14:	/* ^N */
 		newlines = !newlines;
 		break;
+	case 20:	/* ^T */
+		if (strlen(entry_text) > 1) {
+			c = entry_text[strlen(entry_text) - 1];
+			entry_text[strlen(entry_text) - 1] = entry_text[strlen(entry_text) - 2];
+			entry_text[strlen(entry_text) - 2] = c;
+			draw_entry();
+			refresh();
+		}
+		break;
 	case 21:	/* ^U */
 		*entry_text = 0;
 		draw_entry();
@@ -716,6 +727,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		draw_entry();
 		refresh();
 		break;
+	case 8:		/* ^H */
 	case 127:	/* backspace */
 	case 263:	/* backspace */
 		if (*entry_text) {
@@ -732,12 +744,6 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 			entry_text[l + 1] = 0;
 			draw_entry();
 			refresh();
-		/*
-		} else {
-			char x[5];
-			sprintf(x, "%d", c);
-			addstr(x);
-		*/
 		}
 		break;
 	}

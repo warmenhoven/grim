@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 	read(fd, buf, 8); /* len & encoding */
 	read(fd, buf, 8); /* rate & count */
 	/*  no more click :) */
-	
+
 	while((res = read(fd, buf, BUF_SIZE)) > 0) {
 		for (x=0;x<res;x++)
 			fprintf(f, "%#x, ", buf[x] & 0xff);
