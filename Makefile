@@ -1,5 +1,6 @@
 LDLIBS = -lcurses -lfaim -lnbio # -lesd
 CFLAGS += -g -I/usr/include/libfaim -I/usr/include/libnbio -Wall
+PERF = -fprofile-arcs -ftest-coverage -O0
 
 OBJS = config.o display.o faim.o list.o main.o
 
@@ -7,6 +8,8 @@ OBJS = config.o display.o faim.o list.o main.o
 #LDLIBS += -lesd
 #CFLAGS += -DSOUND
 #OBJS += sound.o
+# if you want to do performance metrics uncomment this line
+#CFLAGS += $(PERF)
 
 TARGET = grim
 

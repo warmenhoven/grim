@@ -28,6 +28,7 @@ static unsigned int cur_tab = 0;
 
 static int sound = 1;
 static int newlines = 1;
+static int print_anyway = 0;
 
 struct group {
 	char *name;
@@ -618,6 +619,8 @@ static void process_command()
 		dvprintf("sound is %s", sound ? "on" : "off");
 	} else if (!strncasecmp(x, "search ", 7) && x[7]) {
 		aim_usersearch_address(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 7);
+	} else if (!strcasecmp(x, "debug")) {
+		print_anyway = !print_anyway;
 	} else if (!strcasecmp(x, "help")) {
 		dvprintf("No help for you! Read the source! NEXT!");
 	}
@@ -792,6 +795,14 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 			entry_text = realloc(entry_text, l + 2);
 			entry_text[l] = c;
 			entry_text[l + 1] = 0;
+			draw_entry();
+			refresh();
+		} else if (print_anyway) {
+			char x[256];
+			int l = strlen(entry_text);
+			snprintf(x, 256, "\\x%02x", c);
+			entry_text = realloc(entry_text, l + strlen(x) + 1);
+			strcat(entry_text, x);
 			draw_entry();
 			refresh();
 		}
