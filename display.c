@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <curses.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -821,6 +822,12 @@ static int watch_stdin()
 	return 0;
 }
 
+static void sigwinch(int sig)
+{
+	endwin();
+	redraw_screen();
+}
+
 int init_window()
 {
 	struct tab *tab;
@@ -840,6 +847,8 @@ int init_window()
 	entry_text = calloc(1, 1);
 
 	redraw_screen();
+
+	signal(SIGWINCH, sigwinch);
 
 	return watch_stdin();
 }
