@@ -23,6 +23,7 @@ static list *tabs = NULL;
 static unsigned int cur_tab = 0;
 
 static int sound = 1;
+static int newlines = 1;
 
 struct group {
 	char *name;
@@ -378,18 +379,19 @@ static struct tab *find_tab(char *who)
 	return t;
 }
 
-static void append_text(struct tab *t, char *x)
+static list *append_text(list *l, char *x)
 {
 	char *m;
 
 	while ((m = strchr(x, '\n'))) {
 		*m = 0;
-		t->text = list_append(t->text, strdup(x));
+		l = list_append(l, strdup(x));
 		*m = '\n';
 		x = m + 1;
 	}
 
-	t->text = list_append(t->text, strdup(x));
+	l = list_append(l, strdup(x));
+	return l;
 }
 
 #define VALID_TAG(x)		if (!strncasecmp(string, x ">", strlen(x ">")))		\
@@ -565,7 +567,7 @@ void got_im(char *from, char *msg, int away)
 		sprintf(x, "%02d:%02d:%02d %s%s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
 				away ? "<AUTO> " : "", from, h);
 
-	append_text(t, x);
+	t->text = append_text(t->text, x);
 	free(x);
 
 	if (list_nth(tabs, cur_tab) != t)
@@ -627,7 +629,7 @@ static void send_message()
 		sprintf(x, "%02d:%02d:%02d %s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
 				si.screenname, h);
 
-	append_text(t, x);
+	t->text = append_text(t->text, x);
 
 	draw_tabs();
 	refresh();
@@ -675,13 +677,23 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		redraw_screen();
 		break;
 	case 13:	/* ^M, enter */
-		if (cur_tab)
-			send_message();
-		else
-			process_command();
-		*entry_text = 0;
+		if (newlines) {
+			if (cur_tab)
+				send_message();
+			else
+				process_command();
+			*entry_text = 0;
+		} else {
+			int l = strlen(entry_text);
+			entry_text = realloc(entry_text, l + 2);
+			entry_text[l] = ' ';
+			entry_text[l + 1] = 0;
+		}
 		draw_entry();
 		refresh();
+		break;
+	case 14:	/* ^N */
+		newlines = !newlines;
 		break;
 	case 21:	/* ^U */
 		*entry_text = 0;
@@ -754,7 +766,7 @@ void dvprintf(char *f, ...)
 	va_end(ap);
 
 	m = strip_html(s);
-	append_text(t, m);
+	t->text = append_text(t->text, m);
 	if (cur_tab)
 		t->unseen = 1;
 	draw_tabs();
