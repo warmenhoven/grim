@@ -56,6 +56,8 @@ static void draw_blist()
 {
 	int pos = 0, i, j;
 	list *p = pals;
+	if (BLWID < 0)
+		return;
 	for (i = 0; i < COLS; i++)
 		for (j = 0; j < BLWID; j++)
 			mvaddch(i, j, ' ');
@@ -200,10 +202,24 @@ static list *wrap(char *text, int cols)
 	return l;
 }
 
+static list *append_text(list *l, char *x)
+{
+	char *m;
+
+	while ((m = strchr(x, '\n'))) {
+		*m = 0;
+		l = list_append(l, strdup(x));
+		*m = '\n';
+		x = m + 1;
+	}
+
+	l = list_append(l, strdup(x));
+	return l;
+}
+
 static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 {
 	list *draw = NULL;
-	int i = strlen(entry_text);
 
 	int lines = b - t, cols = r - l;
 
@@ -224,16 +240,12 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 
 	while (draw) {
 		char *d = draw->data;
+		int i = strlen(draw->data);
 		mvaddstr(t++, l, draw->data);
 		draw = list_remove(draw, draw->data);
 		if (cursor) {
-			if (strlen(d) > i)
-				i -= strlen(d);
-			else {
-				cursor_x = BLWID + 1 + i;
-				cursor_y = t - 1;
-				cursor = FALSE;
-			}
+			cursor_x = BLWID + 1 + i;
+			cursor_y = t - 1;
 		}
 		free(d);
 	}
@@ -299,7 +311,7 @@ static void draw_entry()
 
 	/* draw the text. draw_list also places the cursor */
 	if (entry_text && *entry_text) {
-		l = list_new(entry_text);
+		l = append_text(NULL, entry_text);
 		draw_list(l, LINES - ENHEI + 1, BLWID + 1, LINES, COLS - 1, TRUE);
 		list_free(l);
 	} else {
@@ -377,21 +389,6 @@ static struct tab *find_tab(char *who)
 	t->text = NULL;
 	tabs = list_append(tabs, t);
 	return t;
-}
-
-static list *append_text(list *l, char *x)
-{
-	char *m;
-
-	while ((m = strchr(x, '\n'))) {
-		*m = 0;
-		l = list_append(l, strdup(x));
-		*m = '\n';
-		x = m + 1;
-	}
-
-	l = list_append(l, strdup(x));
-	return l;
 }
 
 #define VALID_TAG(x)		if (!strncasecmp(string, x ">", strlen(x ">")))		\
@@ -693,7 +690,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		} else {
 			int l = strlen(entry_text);
 			entry_text = realloc(entry_text, l + 2);
-			entry_text[l] = ' ';
+			entry_text[l] = '\n';
 			entry_text[l + 1] = 0;
 		}
 		draw_entry();
