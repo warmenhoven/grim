@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define BLWID 20
-#define ENHEI 8
+#define ENHEI 4
 
 /** LIST UTIL **/
 
