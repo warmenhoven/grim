@@ -1,8 +1,10 @@
 #define _GNU_SOURCE
 #include <ctype.h>
 #include <curses.h>
+#include <fcntl.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "list.h"
 #include "main.h"
 
@@ -754,6 +756,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 int watch_stdin()
 {
 	nbio_fd_t *fdt;
+	int fl;
 
 	if (!(fdt = nbio_addfd(&gnb, NBIO_FDTYPE_STREAM, 0, 0, stdin_ready, NULL, 0, 0))) {
 		fprintf(stderr, "Couldn't read stdin\n");
@@ -763,6 +766,10 @@ int watch_stdin()
 		fprintf(stderr, "Couldn't read raw stdin\n");
 		return 1;
 	}
+
+	fl = fcntl(1, F_GETFL);
+	fl ^= O_NONBLOCK;
+	fcntl(1, F_SETFL, fl);
 
 	return 0;
 }
