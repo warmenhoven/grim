@@ -1,109 +1,12 @@
 #define _GNU_SOURCE
-#include "main.h"
 #include <curses.h>
 #include <ctype.h>
 #include <string.h>
+#include "main.h"
+#include "list.h"
 
 #define BLWID 20
 #define ENHEI 4
-
-/** LIST UTIL **/
-
-typedef struct _list {
-	struct _list *prev;
-	struct _list *next;
-	void *data;
-} list;
-
-static list *list_new(void *data)
-{
-	list *l = malloc(sizeof(list));
-	l->prev = NULL;
-	l->next = NULL;
-	l->data = data;
-	return l;
-}
-
-static unsigned int list_length(list *l)
-{
-	unsigned int c = 0;
-
-	while (l) {
-		l = l->next;
-		c++;
-	}
-
-	return c;
-}
-
-static void *list_nth(list *l, int n)
-{
-	while (l && n) {
-		l = l->next;
-		n--;
-	}
-	if (l) return l->data;
-	return NULL;
-}
-
-static list *list_append(list *l, void *data)
-{
-	list *s = l;
-
-	if (!s) return list_new(data);
-
-	while (s->next) s = s->next;
-	s->next = list_new(data);
-	s->next->prev = s;
-
-	return l;
-}
-
-static list *list_prepend(list *l, void *data)
-{
-	list *s = list_new(data);
-	s->next = l;
-	if (l)
-		l->prev = s;
-	return s;
-}
-
-static list *list_remove(list *l, void *data)
-{
-	list *s = l, *p = NULL;
-
-	if (!s) return NULL;
-	if (s->data == data) {
-		p = s->next;
-		if (p)
-			p->prev = NULL;
-		free(s);
-		return p;
-	}
-	while (s->next) {
-		p = s;
-		s = s->next;
-		if (s->data == data) {
-			p->next = s->next;
-			if (p->next)
-				p->next->prev = p;
-			free(s);
-			return l;
-		}
-	} 
-	return l;
-}
-
-static void list_free(list *l)
-{
-	while (l) {
-		list *s = l;
-		l = l->next;
-		free(s);
-	}
-}
-
-/** LIST UTIL (END) **/
 
 static unsigned int cursor_x = 0;
 static unsigned int cursor_y = 0;

@@ -1,3 +1,6 @@
+#ifndef main_h
+#define main_h
+
 #include <aim.h>
 #include <libnbio.h>
 #include <stdarg.h>
@@ -31,3 +34,5 @@ extern void end_window();
 extern void got_im(char *, char *, int);
 
 extern void play();
+
+#endif
