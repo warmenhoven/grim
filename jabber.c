@@ -25,6 +25,14 @@ static void jabber_send(char *stream)
 
 static void jabber_process()
 {
+	dvprintf("jabber_process %s", xml_name(si.sess.curr));
+
+	if (!strcmp(xml_name(si.sess.curr), "iq")) {
+	} else
+		dvprintf("unhandled xml parent %s", xml_name(si.sess.curr));
+
+	xml_free(si.sess.curr);
+	si.sess.curr = NULL;
 }
 
 static void jabber_start(void *data, const char *el, const char **attr)
