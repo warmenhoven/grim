@@ -6,7 +6,7 @@
 #include "main.h"
 #include "list.h"
 
-#define BLWID 14
+static int BLWID = 14;
 #define ENHEI 4
 
 static unsigned int cursor_x = 0;
@@ -642,6 +642,13 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	struct tab *t;
 	int c = getch();
 	switch (c) {
+	case 2:		/* ^B */
+		if (BLWID < 0)
+			BLWID = 14;
+		else
+			BLWID = -1;
+		redraw_screen();
+		break;
 	case 3:		/* ^C */
 		if (cur_tab) {
 			t = list_nth(tabs, cur_tab);
