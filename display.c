@@ -316,7 +316,7 @@ static void draw_entry()
 	}
 
 	/* draw the text. draw_list also places the cursor */
-	if (entry_text && *entry_text) {
+	if (*entry_text) {
 		l = append_text(NULL, entry_text);
 		draw_list(l, LINES - ENHEI + 1, BLWID + 1, LINES, COLS - 1, TRUE);
 		list_free(l);
@@ -327,7 +327,7 @@ static void draw_entry()
 	}
 }
 
-void redraw_screen()
+static void redraw_screen()
 {
 	/* draw the vertical line */
 	mvvline(0, BLWID, ' ' /* ACS_VLINE */, LINES);
@@ -345,34 +345,6 @@ void redraw_screen()
 	draw_entry();
 
 	refresh();
-}
-
-int init_window()
-{
-	struct tab *tab;
-
-	initscr();
-	keypad(stdscr, TRUE);
-	nonl();
-	raw();
-	noecho();
-
-	tab = calloc(1, sizeof(struct tab));
-	tab->title = strdup(PROG);
-	tab->unseen = 0;
-	tab->text = NULL;
-
-	tabs = list_append(tabs, tab);
-	entry_text = calloc(1, 1);
-
-	redraw_screen();
-
-	return watch_stdin();
-}
-
-void end_window()
-{
-	endwin();
 }
 
 static struct tab *find_tab(char *who)
@@ -581,6 +553,25 @@ void got_im(char *from, char *msg, int away)
 	if (sound) play();
 }
 
+void dvprintf(char *f, ...)
+{
+	va_list ap;
+	char s[8192];
+	struct tab *t = tabs->data;
+	char *m;
+
+	va_start(ap, f);
+	vsprintf(s, f, ap);
+	va_end(ap);
+
+	m = strip_html(s);
+	t->text = append_text(t->text, m);
+	if (cur_tab)
+		t->unseen = 1;
+	draw_tabs();
+	refresh();
+}
+
 static void process_command()
 {
 	char *x = entry_text;
@@ -612,7 +603,7 @@ static void send_message()
 
 	char *h, *x;
 
-	if (!entry_text || !*entry_text)
+	if (!*entry_text)
 		return;
 
 	t = list_nth(tabs, cur_tab);
@@ -706,6 +697,16 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	case 14:	/* ^N */
 		newlines = !newlines;
 		break;
+	case 18:	/* ^R */
+		t = list_nth(tabs, cur_tab);
+		while (t->text) {
+			char *s = t->text->data;
+			t->text = list_remove(t->text, s);
+			free(s);
+		}
+		draw_tabs();
+		refresh();
+		break;
 	case 20:	/* ^T */
 		if (strlen(entry_text) > 1) {
 			c = entry_text[strlen(entry_text) - 1];
@@ -753,7 +754,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	return 0;
 }
 
-int watch_stdin()
+static int watch_stdin()
 {
 	nbio_fd_t *fdt;
 	int fl;
@@ -774,21 +775,30 @@ int watch_stdin()
 	return 0;
 }
 
-void dvprintf(char *f, ...)
+int init_window()
 {
-	va_list ap;
-	char s[8192];
-	struct tab *t = tabs->data;
-	char *m;
+	struct tab *tab;
 
-	va_start(ap, f);
-	vsprintf(s, f, ap);
-	va_end(ap);
+	initscr();
+	keypad(stdscr, TRUE);
+	nonl();
+	raw();
+	noecho();
 
-	m = strip_html(s);
-	t->text = append_text(t->text, m);
-	if (cur_tab)
-		t->unseen = 1;
-	draw_tabs();
-	refresh();
+	tab = calloc(1, sizeof(struct tab));
+	tab->title = strdup(PROG);
+	tab->unseen = 0;
+	tab->text = NULL;
+
+	tabs = list_append(tabs, tab);
+	entry_text = calloc(1, 1);
+
+	redraw_screen();
+
+	return watch_stdin();
+}
+
+void end_window()
+{
+	endwin();
 }

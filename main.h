@@ -30,7 +30,6 @@ extern void buddy_state(char *, int);
 
 extern int read_config();
 
-extern int watch_stdin();
 extern int init_window();
 extern void end_window();
 
