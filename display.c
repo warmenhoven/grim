@@ -5,7 +5,6 @@
 #include "main.h"
 #include "list.h"
 
-#define BLWID 20
 #define ENHEI 4
 
 static unsigned int cursor_x = 0;
@@ -22,11 +21,6 @@ static list *tabs = NULL;
 static unsigned int cur_tab = 0;
 
 static int sound = 1;
-
-static void draw_blist()
-{
-	/* XXX */
-}
 
 static list *wrap(char *text, int cols)
 {
@@ -82,7 +76,7 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 			if (strlen(d) > i)
 				i -= strlen(d);
 			else {
-				cursor_x = BLWID + 1 + i;
+				cursor_x = i;
 				cursor_y = t - 1;
 				cursor = FALSE;
 			}
@@ -95,16 +89,15 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 
 static void draw_tabs()
 {
-	int i = 0, pos = BLWID + 2;
+	int i = 0, pos = 1;
 	list *t = tabs;
 	struct tab *ct = NULL;
 
 	/* draw the horizontal line separating the tabs from the view */
-	mvhline(1, BLWID + 1, ACS_HLINE, 100);
-	mvaddch(1, BLWID, ACS_LTEE);
+	mvhline(1, 0, ACS_HLINE, COLS);
 
 	/* clear the old titles */
-	move(0, BLWID + 1);
+	move(0, 0);
 	clrtoeol();
 
 	/* draw the tabs, but only titles except for the cur_tab */
@@ -130,12 +123,12 @@ static void draw_tabs()
 
 	/* clear out the old tab */
 	for (i = 2; i < LINES - ENHEI; i++) {
-		move(i, BLWID + 1);
+		move(i, 0);
 		clrtoeol();
 	}
 
 	/* now draw the new one */
-	draw_list(ct->text, 2, BLWID + 1, LINES - ENHEI, COLS, FALSE);
+	draw_list(ct->text, 2, 0, LINES - ENHEI, COLS, FALSE);
 }
 
 static void draw_entry()
@@ -145,17 +138,17 @@ static void draw_entry()
 
 	/* clear all the old text */
 	for (i = LINES - ENHEI + 1; i < LINES; i++) {
-		move(i, BLWID + 1);
+		move(i, 0);
 		clrtoeol();
 	}
 
 	/* draw the text. draw_list also places the cursor */
 	if (entry_text && *entry_text) {
 		l = list_new(entry_text);
-		draw_list(l, LINES - ENHEI + 1, BLWID + 1, LINES, COLS - 1, TRUE);
+		draw_list(l, LINES - ENHEI + 1, 0, LINES, COLS - 1, TRUE);
 		list_free(l);
 	} else {
-		cursor_x = BLWID + 1;
+		cursor_x = 0;
 		cursor_y = LINES - ENHEI + 1;
 		move(cursor_y, cursor_x);
 	}
@@ -163,14 +156,8 @@ static void draw_entry()
 
 void redraw_screen()
 {
-	/* draw the vertical line */
-	mvvline(0, BLWID, ACS_VLINE, 100);
-
 	/* now the horizontal one separating the view from the entry */
-	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, 100);
-	mvaddch(LINES - ENHEI, BLWID, ACS_LTEE);
-
-	draw_blist();
+	mvhline(LINES - ENHEI, 0, ACS_HLINE, COLS);
 
 	/* draw the current tab */
 	draw_tabs();
@@ -560,6 +547,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		refresh();
 		break;
 	case 127:	/* backspace */
+	case 263:	/* backspace */
 		if (*entry_text) {
 			entry_text[strlen(entry_text)-1] = 0;
 			draw_entry();
@@ -574,6 +562,12 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 			entry_text[l + 1] = 0;
 			draw_entry();
 			refresh();
+		/*
+		} else {
+			char x[5];
+			sprintf(x, "%d", c);
+			addstr(x);
+		*/
 		}
 		break;
 	}

@@ -304,34 +304,6 @@ static int cb_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int cb_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	va_list ap;
-	aim_userinfo_t *info;
-
-	va_start(ap, fr);
-	info = va_arg(ap, aim_userinfo_t *);
-	va_end(ap);
-
-	/* XXX */
-
-	return 1;
-}
-
-static int cb_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	va_list ap;
-	aim_userinfo_t *info;
-
-	va_start(ap, fr);
-	info = va_arg(ap, aim_userinfo_t *);
-	va_end(ap);
-
-	/* XXX */
-
-	return 1;
-}
-
 static int cb_incomingim(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	fu16_t channel;
@@ -493,8 +465,6 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_conn_addhandler(sess, bosconn, 0x0004, 0x0005, cb_icbmparaminfo, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, cb_conninitdone_bos, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BOS, AIM_CB_BOS_RIGHTS, cb_bosrights, 0);
-	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, cb_oncoming, 0);
-	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, cb_offgoing, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, cb_incomingim, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, cb_parse_err, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, cb_parse_err, 0);
