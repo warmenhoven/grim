@@ -666,6 +666,7 @@ static void send_message()
 static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 {
 	struct tab *t;
+	int l = strlen(entry_text);
 	int c = getch();
 	switch (c) {
 	case 2:		/* ^B */
@@ -701,7 +702,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	case 127:	/* backspace */
 	case 263:	/* backspace */
 		if (*entry_text) {
-			entry_text[strlen(entry_text)-1] = 0;
+			entry_text[l - 1] = 0;
 			draw_entry();
 			refresh();
 		}
@@ -727,7 +728,6 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 				process_command();
 			*entry_text = 0;
 		} else {
-			int l = strlen(entry_text);
 			entry_text = realloc(entry_text, l + 2);
 			entry_text[l] = '\n';
 			entry_text[l + 1] = 0;
@@ -749,10 +749,10 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		refresh();
 		break;
 	case 20:	/* ^T */
-		if (strlen(entry_text) > 1) {
-			c = entry_text[strlen(entry_text) - 1];
-			entry_text[strlen(entry_text) - 1] = entry_text[strlen(entry_text) - 2];
-			entry_text[strlen(entry_text) - 2] = c;
+		if (l > 1) {
+			c = entry_text[l - 1];
+			entry_text[l - 1] = entry_text[l - 2];
+			entry_text[l - 2] = c;
 			draw_entry();
 			refresh();
 		}
@@ -763,7 +763,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		refresh();
 		break;
 	case 23:	/* ^W */
-		c = strlen(entry_text) - 1;
+		c = l - 1;
 		while (c > 0 && isspace(entry_text[c])) c--;
 		while (c + 1 && !isspace(entry_text[c])) c--;
 		c++;
@@ -789,17 +789,43 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 			refresh();
 		}
 		break;
+
+#define ADD_CHAR(e)	do { \
+				entry_text = realloc(entry_text, l + 2); \
+				entry_text[l] = e; \
+				entry_text[l + 1] = 0; \
+				draw_entry(); \
+				refresh(); \
+			} while (0)
+
+	case 195:
+		c = getch();
+		c += 64;
+		ADD_CHAR(c);
+		break;
+	case 432:
+	case 433:
+	case 434:
+	case 435:
+	case 436:
+	case 437:
+	case 438:
+	case 439:
+	case 440:
+	case 441:
+		if (c - 432 < list_length(tabs)) {
+			cur_tab = c - 432;
+			t = list_nth(tabs, cur_tab);
+			t->unseen = 0;
+			draw_tabs();
+			refresh();
+		}
+		break;
 	default:
 		if (isprint(c)) {
-			int l = strlen(entry_text);
-			entry_text = realloc(entry_text, l + 2);
-			entry_text[l] = c;
-			entry_text[l + 1] = 0;
-			draw_entry();
-			refresh();
+			ADD_CHAR(c);
 		} else if (print_anyway) {
 			char x[256];
-			int l = strlen(entry_text);
 			snprintf(x, 256, "\\x%02x", c);
 			entry_text = realloc(entry_text, l + strlen(x) + 1);
 			strcat(entry_text, x);
