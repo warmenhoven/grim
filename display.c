@@ -48,7 +48,7 @@ static list *notfound = NULL;
 
 static char *nospaces(char *x)
 {
-	static char m[17];
+	static char m[256];
 	int i = 0, j = 0;
 	while (x[i]) {
 		if (x[i] != ' ')

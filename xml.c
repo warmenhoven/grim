@@ -76,7 +76,7 @@ void *xml_parent(void *child)
 	return node->parent;
 }
 
-const char *xml_name(void *n)
+char *xml_name(void *n)
 {
 	xmlnode *node = n;
 	if (!node)
@@ -103,7 +103,15 @@ void *xml_get_child(void *n, const char *name)
 	return NULL;
 }
 
-const char *xml_get_attrib(void *n, const char *name)
+list *xml_get_children(void *p)
+{
+	xmlnode *parent = p;
+	if (!parent)
+		return NULL;
+	return parent->children;
+}
+
+char *xml_get_attrib(void *n, const char *name)
 {
 	xmlnode *node = n;
 	list *l;
@@ -121,7 +129,7 @@ const char *xml_get_attrib(void *n, const char *name)
 	return NULL;
 }
 
-const char *xml_get_data(void *n)
+char *xml_get_data(void *n)
 {
 	if (!n) return NULL;
 	return ((xmlnode *)n)->data;

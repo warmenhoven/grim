@@ -7,15 +7,14 @@
 #include "main.h"
 #include "xml.h"
 
-char *c = "<iq id='j6' type='set'><query xmlns='jabber:iq:auth'><username>eric</username><resource>work</resource><hash>fed48b727f0f21f3eb3c53a7e0247bb3028a6794</hash></query></iq>";
-char *d = "<iq type='get'><query xmlns='jabber:iq:roster'/></iq>";
-char *e = "<presence><status>Online</status><priority>9</priority></presence>";
+typedef struct _jiq {
+	int id;
+	void (*cb)();
+} jiq;
 
 static void jabber_send(char *stream)
 {
 	char *buf = strdup(stream);
-
-	dvprintf("sent %d: %s", strlen(buf), buf);
 
 	if (nbio_addtxvector(&gnb, si.sess.fdt, buf, strlen(buf)) == -1) {
 		dvprintf("nbio_addtxvector: %s", strerror(errno));
@@ -23,16 +22,174 @@ static void jabber_send(char *stream)
 	}
 }
 
+static void jabber_send_iq(char *stream, int id, void (*cb)())
+{
+	jiq *j = malloc(sizeof (jiq));
+	if (!j)
+		return;
+
+	j->id = id;
+	j->cb = cb;
+
+	si.sess.iqs = list_append(si.sess.iqs, j);
+
+	jabber_send(stream);
+}
+
 static void jabber_process()
 {
-	dvprintf("jabber_process %s", xml_name(si.sess.curr));
-
 	if (!strcmp(xml_name(si.sess.curr), "iq")) {
+		const char *type = xml_get_attrib(si.sess.curr, "type");
+		if (!type)
+			return;
+		if (!strcasecmp(type, "result")) {
+			const char *id = xml_get_attrib(si.sess.curr, "id");
+			int q;
+			list *l = si.sess.iqs;
+			if (!id) {
+				dvprintf("result with no id");
+				xml_free(si.sess.curr);
+				si.sess.curr = NULL;
+				return;
+			}
+			q = atoi(id);
+			while (l) {
+				jiq *j = l->data;
+				if (j->id == q) {
+					j->cb();
+					break;
+				}
+				l = l->next;
+			}
+			if (!l)
+				dvprintf("result with no callback");
+		} else if (!strcasecmp(type, "error")) {
+			dvprintf("error");
+		} else {
+			dvprintf("unhandled iq");
+		}
+	} else if (!strcmp(xml_name(si.sess.curr), "presence")) {
+		char *from = xml_get_attrib(si.sess.curr, "from");
+		char *type = xml_get_attrib(si.sess.curr, "type");
+		void *status = xml_get_child(si.sess.curr, "status");
+		char *slash;
+		if (!from || !status) {
+			dvprintf("presence with no %s", from ? "status" : "from");
+			xml_free(si.sess.curr);
+			si.sess.curr = NULL;
+			return;
+		}
+		if ((slash = strchr(from, '/')) != NULL)
+			*slash = 0;
+		if (type && !strcmp(type, "unavailable"))
+			buddy_state(from, 0);
+		else
+			buddy_state(from, 1);
+	} else if (!strcmp(xml_name(si.sess.curr), "message")) {
+		char *from = xml_get_attrib(si.sess.curr, "from");
+		char *body = xml_get_child(si.sess.curr, "body");
+		char *msg = NULL;
+		char *slash;
+		if (body)
+			msg = xml_get_data(body);
+		if (!from || !msg) {
+			dvprintf("message with no %s", from ? "msg" : "from");
+			xml_free(si.sess.curr);
+			si.sess.curr = NULL;
+			return;
+		}
+		if ((slash = strchr(from, '/')) != NULL)
+			*slash = 0;
+		got_im(from, msg, 0);
 	} else
 		dvprintf("unhandled xml parent %s", xml_name(si.sess.curr));
 
 	xml_free(si.sess.curr);
 	si.sess.curr = NULL;
+}
+
+static void jabber_roster_cb()
+{
+	void *query;
+
+	dvprintf("online");
+
+	query = xml_get_child(si.sess.curr, "query");
+	add_group("Buddies", 1);
+	if (query) {
+		list *children = xml_get_children(query);
+		while (children) {
+			void *item = children->data;
+			char *jid, *sub;
+			children = children->next;
+			sub = xml_get_attrib(item, "subscription");
+			if (!sub) {
+				dvprintf("no subscription information");
+				continue;
+			}
+			if (strcmp(sub, "both") && strcmp(sub, "to")) {
+				dvprintf("subscription not to");
+				continue;
+			}
+			jid = xml_get_attrib(item, "jid");
+			if (!jid) {
+				dvprintf("no jid?");
+				continue;
+			}
+			add_buddy(jid, 1);
+		}
+	}
+
+	jabber_send("<presence><status>Online</status><priority>9</priority></presence>");
+}
+
+static void jabber_auth_cb()
+{
+	char roster[1024];
+
+	dvprintf("authenticated");
+
+	snprintf(roster, sizeof(roster), "<iq id='%d' type='get'><query xmlns='jabber:iq:roster'/></iq>", si.sess.id);
+	jabber_send_iq(roster, si.sess.id++, jabber_roster_cb);
+}
+
+static void jabber_auth(int type)
+{
+	char auth[1024];
+	int n;
+
+	n = snprintf(auth, sizeof(auth), "<iq id='%d' type='set'><query xmlns='jabber:iq:auth'><username>%s</username><resource>%s</resource>",
+		     si.sess.id, si.screenname, si.resource ? si.resource : "grim");
+
+#if 0
+	if (type == 0) {
+	} else if (type == 1) {
+		n += snprintf(auth + n, sizeof(auth) - n, "<digest>%s</digest>", si.password);
+	} else if (type == 2) {
+		n += snprintf(auth + n, sizeof(auth) - n, "<password>%s</password>", si.password);
+	}
+#else
+	n += snprintf(auth + n, sizeof(auth) - n, "<password>%s</password>", si.password);
+#endif
+
+	snprintf(auth + n, sizeof(auth) - n, "</query></iq>");
+
+	jabber_send_iq(auth, si.sess.id++, jabber_auth_cb);
+}
+
+static void jabber_start_cb()
+{
+	void *query = xml_get_child(si.sess.curr, "query");
+	if (!query) {
+		dvprintf("auth with no query");
+		return;
+	}
+	if (xml_get_child(query, "sequence") && xml_get_child(query, "token"))
+		jabber_auth(0);
+	else if (xml_get_child(query, "digest"))
+		jabber_auth(1);
+	else if (xml_get_child(query, "password"))
+		jabber_auth(2);
 }
 
 static void jabber_start(void *data, const char *el, const char **attr)
@@ -41,8 +198,8 @@ static void jabber_start(void *data, const char *el, const char **attr)
 
 	if (!strcmp(el, "stream:stream")) {
 		char iq[1024];
-		snprintf(iq, sizeof(iq), "<iq id='j%d' type='get'><query xmlns='jabber:iq:auth'><username>%s</username></query></iq>", si.sess.id++, si.screenname);
-		jabber_send(iq);
+		snprintf(iq, sizeof(iq), "<iq id='%d' type='get'><query xmlns='jabber:iq:auth'><username>%s</username></query></iq>", si.sess.id, si.screenname);
+		jabber_send_iq(iq, si.sess.id++, jabber_start_cb);
 		return;
 	}
 
@@ -85,8 +242,6 @@ static int jabber_callback(void *nb, int event, nbio_fd_t *fdt)
 			return -1;
 		}
 		buf[len] = '\0';
-
-		dvprintf("%s", buf);
 
 		if (!XML_Parse(si.sess.parser, buf, len, 0)) {
 			dvprintf("parser error: %s", XML_ErrorString(XML_GetErrorCode(si.sess.parser)));
@@ -155,8 +310,6 @@ int init_server()
 	XML_SetElementHandler(si.sess.parser, jabber_start, jabber_end);
 	XML_SetCharacterDataHandler(si.sess.parser, jabber_chardata);
 
-	si.sess.id = 1;
-
 	if (!(hp = gethostbyname(si.authorizer)))
 		return -1;
 
@@ -181,6 +334,13 @@ void usersearch(char *email)
 
 void send_im(char *to, char *msg)
 {
+	int len = strlen(msg) + strlen(to) + 1024;
+	char *send = malloc(len);
+	if (!send)
+		return;
+	snprintf(send, len, "<message to='%s' type='chat'><body>%s</body></message>", to, msg);
+	jabber_send(send);
+	free(send);
 }
 
 void keepalive()

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include "main.h"
 
@@ -9,6 +10,8 @@ int main()
 {
 	time_t lastnop;
 	si.killme = 0;
+
+	memset(&si, 0, sizeof(si));
 
 	if (read_config())	/* this will also create a default one if it doesn't exist yet */
 		return 1;

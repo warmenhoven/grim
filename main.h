@@ -9,6 +9,7 @@
 #define HAVE_SYS_SOCKET_H
 #include <libnbio.h>
 #include <stdarg.h>
+#include "list.h"
 
 #define PROG "grim"
 
@@ -21,6 +22,7 @@ typedef struct _jabber_session {
 	XML_Parser parser;
 	int id;
 	void *curr;
+	list *iqs;
 } jabber_session_t;
 #endif
 

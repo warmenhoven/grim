@@ -31,8 +31,6 @@ int read_config()
 	struct stat sb;
 	char path[1024];
 
-	si.resource = NULL;
-
 	/* make sure the directory exists and is a directory */
 	sprintf(path, "%s/.%s", getenv("HOME"), PROG);
 	if (stat(path, &sb))

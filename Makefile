@@ -31,7 +31,7 @@ TARGET = grim
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) $(LDLIBS) -o $@
 
-$(OBJS): main.h list.h
+$(OBJS): main.h list.h xml.h
 
 sound.o: sound.h
 
