@@ -170,7 +170,6 @@ static int aim_tx_sendframe_nbio(aim_session_t *sess, aim_frame_t *fr)
 	nbio_fd_t *fdt;
 	aim_bstream_t bufbs;
 
-	/* XXX get rid of getfdt */
 	if (!(fdt = nbio_getfdt(&gnb, fr->conn->fd))) {
 		dvprintf("sendframe: getfdt failed");
 		return -1;
@@ -242,9 +241,8 @@ static nbio_fd_t *addaimconn(aim_conn_t *conn)
 {
 	nbio_fd_t *fdt;
 
-	if (!(fdt = nbio_addfd(&gnb, NBIO_FDTYPE_STREAM, conn->fd, 0, aim_callback, (void *)conn, 1, 128))) {
+	if (!(fdt = nbio_addfd(&gnb, NBIO_FDTYPE_STREAM, conn->fd, 0, aim_callback, conn, 1, 128)))
 		return NULL;
-	}
 
 	aim_nbio_addflapvec(fdt, NULL);
 
@@ -257,11 +255,8 @@ static int cb_conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_bos_reqlocaterights(sess, fr->conn);
 	aim_bos_setprofile(sess, fr->conn, NULL, NULL, 0);
 	aim_bos_reqbuddyrights(sess, fr->conn);
-
 	aim_reqicbmparams(sess);
-
 	aim_bos_reqrights(sess, fr->conn);
-
 	aim_bos_setgroupperm(sess, fr->conn, AIM_FLAG_ALLUSERS);
 	aim_bos_setprivacyflags(sess, fr->conn, 0);
 
@@ -286,14 +281,6 @@ static int cb_icbmparaminfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	params = va_arg(ap, struct aim_icbmparameters *);
 	va_end(ap);
 
-	dvprintf("ICBM Parameters: maxchannel = %d, default flags = 0x%08lx, max msg len = %d, max sender evil = %f, max reciever evil = %f, min msg interval = %ld", params->maxchan, params->flags, params->maxmsglen, ((float)params->maxsenderwarn)/10.0, ((float)params->maxrecverwarn)/10.0, params->minmsginterval);
-
-	/*
-	 * Set these to your taste, or client medium.  Setting minmsginterval
-	 * higher is good for keeping yourself from getting flooded (esp
-	 * if you're on a slow connection or something where that would be
-	 * useful).
-	 */
 	params->maxmsglen = 8000;
 	params->minmsginterval = 0; /* in milliseconds */
 
@@ -312,8 +299,6 @@ static int cb_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	code = va_arg(ap, int);
 	msg = va_arg(ap, char *);
 	va_end(ap);
-
-	dvprintf("connerr: Code 0x%04x: %s", code, msg);
 
 	si.killme = 1;
 
@@ -419,49 +404,6 @@ static int cb_parse_err(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int cb_ratechange(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	/* static char *codes[5] = {"invalid", "change", "warning", "limit", "limit cleared"}; */
-	va_list ap;
-	int code;
-	unsigned long parmid, windowsize, clear, alert, limit, disconnect;
-	unsigned long currentavg, maxavg;
-
-	va_start(ap, fr); 
-
-	/* See code explanations below */
-	code = va_arg(ap, int);
-
-	/*
-	 * Known parameter ID's...
-	 *   0x0001  Warnings
-	 *   0x0003  BOS (normal ICBMs, userinfo requests, etc)
-	 *   0x0005  Chat messages
-	 */
-	parmid = va_arg(ap, unsigned long);
-
-	/*
-	 * Not sure what this is exactly.  I think its the temporal 
-	 * relation factor (ie, how to make the rest of the numbers
-	 * make sense in the real world). 
-	 */
-	windowsize = va_arg(ap, unsigned long);
-
-	/* Explained below */
-	clear = va_arg(ap, unsigned long);
-	alert = va_arg(ap, unsigned long);
-	limit = va_arg(ap, unsigned long);
-	disconnect = va_arg(ap, unsigned long);
-	currentavg = va_arg(ap, unsigned long);
-	maxavg = va_arg(ap, unsigned long);
-
-	va_end(ap);
-
-	/* XXX */
-
-	return 1;
-}
-
 static int cb_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
@@ -473,7 +415,8 @@ static int cb_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	/* XXX */
+	dvprintf("warned by %s, now at %f", userinfo->sn && *userinfo->sn ? userinfo->sn : "anon",
+		 aim_userinfo_warnlevel(userinfo));
 
 	return 1;
 }
@@ -523,16 +466,8 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	dvprintf("aim: screen name: %s", info->sn);
 	
-	/*
-	 * Check for error.
-	 */
 	if (info->errorcode || !info->bosip || !info->cookie) {
-
-		dvprintf("aim: Login Error Code 0x%04x", info->errorcode);
-		dvprintf("aim: Error URL: %s", info->errorurl);
-
 		si.killme = 1;
-
 		return 1;
 	}
 
@@ -544,18 +479,14 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	nbio_closefdt(&gnb, authfdt);
 
 	if (!(bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, info->bosip))) {
-		dvprintf("aim: could not connect to BOS: internal error");
 		si.killme = 1;
 		return 1;
-	} else if ((bosconn->fd == -1) ||
-			(bosconn->status & AIM_CONN_STATUS_CONNERR)) {
-		dvprintf("aim: could not connect to BOS");
+	} else if ((bosconn->fd == -1) || (bosconn->status & AIM_CONN_STATUS_CONNERR)) {
 		si.killme = 1;
 		return 1;
 	}
 
 	if (!(bosfdt = addaimconn(bosconn))) {
-		dvprintf("addaimconn failed for BOS");
 		aim_conn_kill(sess, &bosconn);
 		si.killme = 1;
 		return 1;
@@ -570,10 +501,8 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, cb_parse_err, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, cb_parse_err, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, cb_connerr, 0);
-	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, cb_ratechange, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, cb_parse_evilnotify, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, cb_parse_userinfo, 0);
-
 
 	aim_sendcookie(sess, bosconn, info->cookie);
 
@@ -607,13 +536,10 @@ int init_faim()
 	dvprintf("connecting to %s", si.authorizer);
 
 	if (!(authconn = aim_newconn(&si.sess, AIM_CONN_TYPE_AUTH, si.authorizer))) {
-
 		dvprintf("faim: internal connection error");
 		aim_session_kill(&si.sess);
 		return -1;
-
 	} else if (authconn->fd == -1) {
-
 		if (authconn->status & AIM_CONN_STATUS_RESOLVERR) {
 			dvprintf("faim: could not resolve authorizer name");
 		} else if (authconn->status & AIM_CONN_STATUS_CONNERR) {
@@ -627,10 +553,9 @@ int init_faim()
 	} 
 
 	if (!addaimconn(authconn)) {
-		dvprintf("addaimconn failed");
 		aim_conn_kill(&si.sess, &authconn);
-		aim_session_kill(&si.sess);
-		return -1;
+		si.killme = 1;
+		return 1;
 	}
 
 	aim_conn_addhandler(&si.sess, authconn, 0x0017, 0x0007, cb_parse_login, 0);
