@@ -126,7 +126,7 @@ void add_buddy(char *name, short gid)
 
 	b = malloc(sizeof (struct buddy));
 	b->name = strdup(nospaces(name));
-	if (strlen(b->name) + 1 > max_blwid)
+	if ((int)strlen(b->name) >= max_blwid)
 		max_blwid = strlen(b->name) + 1;
 	b->state = 0;
 	if (notfound) {
