@@ -6,7 +6,8 @@
 #include "main.h"
 #include "list.h"
 
-static int BLWID = 14;
+static int max_blwid = -1;
+static int BLWID = -1;
 #define ENHEI 4
 
 static unsigned int cursor_x = 0;
@@ -125,6 +126,8 @@ void add_buddy(char *name, short gid)
 
 	b = malloc(sizeof (struct buddy));
 	b->name = strdup(nospaces(name));
+	if (strlen(b->name) + 1 > max_blwid)
+		max_blwid = strlen(b->name) + 1;
 	b->state = 0;
 	if (notfound) {
 		l = notfound;
@@ -641,7 +644,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 	switch (c) {
 	case 2:		/* ^B */
 		if (BLWID < 0)
-			BLWID = 14;
+			BLWID = max_blwid;
 		else
 			BLWID = -1;
 		redraw_screen();
