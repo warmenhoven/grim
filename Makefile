@@ -43,7 +43,7 @@ clean:
 
 dist:
 	rm -f $(TARGET).tgz
-	mkdir -p tmp/$(TARGET)
-	cp Makefile *.c main.h list.h xml.h Receive.au grim.1 tmp/$(TARGET)
-	cd tmp && tar zcf ../$(TARGET).tgz $(TARGET)
+	mkdir -p tmp/$(TARGET)-`date +%Y%m%d`
+	cp Makefile *.c main.h list.h xml.h Receive.au grim.1 tmp/$(TARGET)-`date +%Y%m%d`
+	cd tmp && tar zcf ../$(TARGET).tgz $(TARGET)-`date +%Y%m%d`
 	rm -rf tmp
