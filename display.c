@@ -481,13 +481,11 @@ static int is_amp(char *string, char *replace, int *length)
 		uint pound = 0;
 		if (sscanf(string, "&#%u;", &pound) == 1) {
 			int l10 = 0;
+			*replace = (char)pound;
 			while (pound /= 10) l10++;
 			if (*(string + 3 + l10) != ';')
 				return 0;
-			*replace = (char)pound;
-			*length = 2;
-			while (isdigit((int)string[*length])) (*length)++;
-			if (string[*length] == ';') (*length)++;
+			*length = 4 + l10;
 		} else {
 			return 0;
 		}
@@ -665,6 +663,15 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		end_window();
 		exit(0);
 		break;
+	case 8:		/* ^H */
+	case 127:	/* backspace */
+	case 263:	/* backspace */
+		if (*entry_text) {
+			entry_text[strlen(entry_text)-1] = 0;
+			draw_entry();
+			refresh();
+		}
+		break;
 	case 9:		/* ^I, tab */
 		cur_tab++;
 		if (cur_tab >= list_length(tabs))
@@ -729,15 +736,6 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		entry_text[c] = 0;
 		draw_entry();
 		refresh();
-		break;
-	case 8:		/* ^H */
-	case 127:	/* backspace */
-	case 263:	/* backspace */
-		if (*entry_text) {
-			entry_text[strlen(entry_text)-1] = 0;
-			draw_entry();
-			refresh();
-		}
 		break;
 	default:
 		if (isprint(c)) {
