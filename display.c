@@ -128,7 +128,7 @@ static list *wrap(char *text, int cols)
 	list *l = NULL;
 	char *m = text;
 
-	if (!m) return l;
+	if (!m || !*m) return list_new(calloc(1, 1));
 
 	while (strlen(m) > cols) {
 		char *x = m + cols;
@@ -157,11 +157,11 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 	list *last = lst;
 	if (last) while (last->next) last = last->next;
 
-	while (last && lines) {
+	while (last && lines > 0) {
 		list *newlines = wrap(last->data, cols);
 		int len = list_length(newlines);
 		list *n = newlines;
-		while (len-- && lines--) {
+		while (len-- && lines-- > 0) {
 			draw = list_prepend(draw, n->data);
 			n = n->next;
 		}
@@ -527,22 +527,14 @@ void got_im(char *from, char *msg, int away)
 				away ? "<AUTO> " : "", from, h);
 
 	append_text(t, x);
+	free(x);
 
 	if (list_nth(tabs, cur_tab) != t)
 		t->unseen = 1;
-
 	draw_tabs();
 	refresh();
 
-	free(x);
-}
-
-void got_err(char *from, int num, char *reason)
-{
-}
-
-void got_send_err(char *to, char *reason)
-{
+	play();
 }
 
 static void process_command()
@@ -554,6 +546,8 @@ static void process_command()
 		find_tab(x + 4);
 		draw_tabs();
 		refresh();
+	} else if (!strncasecmp(x, "info ", 5) && x[5]) {
+		aim_getinfo(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 5, AIM_GETINFO_GENERALINFO);
 	}
 }
 
@@ -697,12 +691,14 @@ void dvprintf(char *f, ...)
 	va_list ap;
 	char s[8192];
 	struct tab *t = tabs->data;
+	char *m;
 
 	va_start(ap, f);
 	vsprintf(s, f, ap);
 	va_end(ap);
 
-	t->text = list_append(t->text, strdup(s));
+	m = strip_html(s);
+	append_text(t, m);
 	if (cur_tab)
 		t->unseen = 1;
 	draw_tabs();

@@ -6,18 +6,10 @@
 nbio_t gnb;
 struct session_info si;
 
-static void cleanup(int sig)
-{
-	end_window();
-	exit(0);
-}
-
 int main()
 {
 	time_t lastnop;
 	si.killme = 0;
-
-	signal(SIGINT, cleanup);
 
 	if (read_config())	/* this will also create a default one if it doesn't exist yet */
 		return 1;
@@ -46,7 +38,7 @@ int main()
 			break;
 	}
 
-	cleanup(0);
+	end_window();
 
 	return 0;
 }

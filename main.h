@@ -29,5 +29,5 @@ extern int init_window();
 extern void end_window();
 
 extern void got_im(char *, char *, int);
-extern void got_err(char *, int, char *);
-extern void got_send_err(char *, char *);
+
+extern void play();
