@@ -826,10 +826,6 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 			refresh();
 		}
 		break;
-	case KEY_RESIZE:
-		clear();
-		redraw_screen();
-		break;
 	default:
 		if (isprint(c)) {
 			ADD_CHAR(c);
