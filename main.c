@@ -19,16 +19,13 @@ int main()
 	if (init_window())	/* this will draw the initial window and add stdin to nbio */
 		return 1;
 
-	if (init_faim())	/* this will add things to gnb. yay for globals */
+	if (init_server())	/* this will add things to gnb. yay for globals */
 		return 1;
 
 	time(&lastnop);
 	while (1) {
 		if ((time(NULL) - lastnop) > 60) {
-			aim_conn_t *cur;
-
-			for (cur = si.sess.connlist; cur; cur = cur->next)
-				aim_flap_nop(&si.sess, cur);
+			keepalive();
 
 			lastnop = time(NULL);
 		}

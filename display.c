@@ -3,6 +3,7 @@
 #include <curses.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -596,7 +597,7 @@ static void process_command()
 		draw_tabs();
 		refresh();
 	} else if (!strncasecmp(x, "info ", 5) && x[5]) {
-		aim_getinfo(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 5, AIM_GETINFO_GENERALINFO);
+		getinfo(x + 5);
 	} else if (!strncasecmp(x, "stalk ", 6) && x[6]) {
 		list *l = pals;
 		while (l) {
@@ -621,7 +622,7 @@ static void process_command()
 	} else if (!strcasecmp(x, "sound")) {
 		dvprintf("sound is %s", sound ? "on" : "off");
 	} else if (!strncasecmp(x, "search ", 7) && x[7]) {
-		aim_usersearch_address(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), x + 7);
+		usersearch(x + 7);
 	} else if (!strcasecmp(x, "debug")) {
 		print_anyway = !print_anyway;
 	} else if (!strcasecmp(x, "help")) {
@@ -649,7 +650,7 @@ static void send_message()
 	h = strip_html(entry_text);
 	x = malloc(strlen(si.screenname) + strlen(h) + 100);
 
-	aim_send_im(&si.sess, t->title, 0, entry_text);
+	send_im(t->title, entry_text);
 
 	if (!strncasecmp(h, "/me ", 4))
 		sprintf(x, "%02d:%02d:%02d *** %s %s", stm->tm_hour, stm->tm_min, stm->tm_sec,

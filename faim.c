@@ -622,7 +622,7 @@ static int cb_parse_login(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-int init_faim()
+int init_server()
 {
 	aim_conn_t *authconn;
 
@@ -662,4 +662,27 @@ int init_faim()
 	aim_request_login(&si.sess, authconn, si.screenname);
 
 	return 0;
+}
+
+void getinfo(char *name)
+{
+	aim_getinfo(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), name, AIM_GETINFO_GENERALINFO);
+}
+
+void usersearch(char *email)
+{
+	aim_usersearch_address(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), email);
+}
+
+void send_im(char *to, char *msg)
+{
+	aim_send_im(&si.sess, to, 0, msg);
+}
+
+void keepalive()
+{
+	aim_conn_t *cur;
+
+	for (cur = si.sess.connlist; cur; cur = cur->next)
+		aim_flap_nop(&si.sess, cur);
 }

@@ -1,15 +1,30 @@
-LDLIBS = -lcurses -lfaim -lnbio # -lesd
-CFLAGS += -g -I/usr/include/libfaim -I/usr/include/libnbio -Wall
-PERF = -fprofile-arcs -ftest-coverage -O0
+CC = gcc
+LDLIBS = -lcurses -lnbio
+CFLAGS += -g -I/usr/include/libnbio -Wall
 
-OBJS = config.o display.o faim.o list.o main.o
+OBJS = config.o display.o list.o main.o
 
-# if you want sound uncomment these three lines
-#LDLIBS += -lesd
-#CFLAGS += -DSOUND
-#OBJS += sound.o
-# if you want to do performance metrics uncomment this line
-#CFLAGS += $(PERF)
+ifneq "$(PERF)" ""
+CFLAGS += -fprofile-arcs -ftest-coverage -O0
+else
+CFLAGS += -O3
+endif
+
+ifneq "$(JABBER)" ""
+LDLIBS += -lexpat
+CFLAGS += -DJABBER
+OBJS += jabber.o xml.o
+else
+LDLIBS += -lfaim
+CFLAGS += -I/usr/include/libfaim
+OBJS += faim.o
+endif
+
+ifneq "$(SOUND)" ""
+LDLIBS += -lesd
+CFLAGS += -DSOUND
+OBJS += sound.o
+endif
 
 TARGET = grim
 

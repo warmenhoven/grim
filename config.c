@@ -1,6 +1,8 @@
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "main.h"
 
 static int defaults()
@@ -17,6 +19,7 @@ static int defaults()
 	fprintf(f, "pass password\n");
 	fprintf(f, "auth login.oscar.aol.com\n");
 	fprintf(f, "port 5190\n");
+	fprintf(f, "res grim\n");
 	fclose(f);
 
 	fprintf(stderr, "Please modify your %s\n", path);
@@ -27,6 +30,8 @@ int read_config()
 {
 	struct stat sb;
 	char path[1024];
+
+	si.resource = NULL;
 
 	/* make sure the directory exists and is a directory */
 	sprintf(path, "%s/.%s", getenv("HOME"), PROG);
@@ -61,6 +66,8 @@ int read_config()
 				si.authorizer = strdup(line + 5);
 			} else if (!strncmp(line, "port ", 5)) {
 				si.port = atoi(line + 5);
+			} else if (!strncmp(line, "res ", 4)) {
+				si.resource = strdup(line + 4);
 			}
 		}
 		fclose(f);
