@@ -519,7 +519,10 @@ static char *strip_html(char *x)
 	y = malloc(strlen(x) + 1);
 
 	while (*x) {
-		if (*x == '<' && (len = is_tag(x + 1))) {
+		if (*x < 32) {
+			y[pos++] = '?';
+			x++;
+		} else if (*x == '<' && (len = is_tag(x + 1))) {
 			x++;
 			if (!strncasecmp(x, "BR>", 3))
 				y[pos++] = '\n';
