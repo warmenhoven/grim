@@ -1,0 +1,34 @@
+.TH GRIM 1 "2004 Apr 29"
+.SH NAME
+grim \- IM client
+.SH SETUP
+When you first run grim, it will create a ~/.grim/config file, which you must
+edit. The file should be self-descriptive. The only things you should need to
+change are your screenname and password.
+.SH USAGE
+grim is tab-based. Use the Tab key to switch between tabs. The primary tab is
+the control tab. Here you can enter the following commands:
+.TP
+tab <screenname>
+Opens a new tab to <screenname>
+.TP
+info <screenname>
+Gets the userinfo and away message for <screenname>
+.SH CONTROL KEYS
+The following control keys should work regardless of which tab you're in:
+.TP
+^B
+Show and hide the buddy list
+.TP
+^C
+Close the current tab (does not work on control tab)
+.TP
+^L
+Redraw the screen. Very useful after you resize your terminal.
+.TP
+^N
+By default any time you enter a newline it will send the text you've written.
+This toggles the newline behavior so you can actually insert a newline
+character.
+.SH EDITING
+Basic emacs-like keys are supported, but editing in general is limited.
