@@ -392,6 +392,93 @@ static int cb_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
+static int cb_parse_buddyrights(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	fu16_t maxbuddies, maxwatchers;
+
+	va_start(ap, fr);
+	maxbuddies = va_arg(ap, int);
+	maxwatchers = va_arg(ap, int);
+	va_end(ap);
+
+	aim_ssi_reqrights(sess, fr->conn);
+
+	return 1;
+}
+
+static int cb_parse_ssirights(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	aim_ssi_reqdata(sess, fr->conn, 0, 0x0000);
+
+	return 1;
+}
+
+static int cb_parse_ssidata(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	fu8_t fmtver;
+	fu16_t itemcount;
+	fu32_t stamp;
+	struct aim_ssi_item *list, *l;
+
+	va_start(ap, fr);
+	fmtver = va_arg(ap, unsigned int);
+	itemcount = va_arg(ap, unsigned int);
+	stamp = va_arg(ap, fu32_t);
+	list = va_arg(ap, struct aim_ssi_item *);
+	va_end(ap);
+
+	for (l = list; l; l = l->next) {
+		/* type, name, gid, bid */
+		if (l->gid == 0x0000)
+			continue;
+		if (l->bid == 0x0000)
+			add_group(l->name, l->gid);
+		else
+			add_buddy(l->name, l->gid);
+	}
+
+	aim_ssi_enable(sess, fr->conn);
+
+	return 1;
+}
+
+static int cb_parse_ssinodata(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	aim_ssi_enable(sess, fr->conn);
+
+	return 1;
+}
+
+static int cb_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	aim_userinfo_t *userinfo;
+
+	va_start(ap, fr);
+	userinfo = va_arg(ap, aim_userinfo_t *);
+	va_end(ap);
+
+	buddy_state(userinfo->sn, 1);
+
+	return 1;
+}
+
+static int cb_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	aim_userinfo_t *userinfo;
+
+	va_start(ap, fr);
+	userinfo = va_arg(ap, aim_userinfo_t *);
+	va_end(ap);
+
+	buddy_state(userinfo->sn, 0);
+
+	return 1;
+}
+
 static int cb_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	aim_userinfo_t *userinfo;
@@ -410,7 +497,7 @@ static int cb_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	if (inforeq == AIM_GETINFO_GENERALINFO) {
 		char buf[26]; ctime_r(&userinfo->onlinesince, buf); buf[strlen(buf)-1] = 0;
 		if (userinfo->idletime)
-			dvprintf("%s: idletime: %d", userinfo->sn, userinfo->idletime);
+			dvprintf("%s: idletime: %d minutes", userinfo->sn, userinfo->idletime);
 		if (aim_userinfo_warnlevel(userinfo))
 			dvprintf("%s: warnlevel: %f", userinfo->sn, aim_userinfo_warnlevel(userinfo));
 		dvprintf("%s: onlinesince: %s", userinfo->sn, buf);
@@ -471,6 +558,13 @@ static int cb_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, cb_connerr, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, cb_parse_evilnotify, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, cb_parse_userinfo, 0);
+
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_RIGHTSINFO, cb_parse_buddyrights, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0003, cb_parse_ssirights, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0006, cb_parse_ssidata, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0013, 0x000f, cb_parse_ssinodata, 0);
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, cb_parse_oncoming, 0);
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, cb_parse_offgoing, 0);
 
 	aim_sendcookie(sess, bosconn, info->cookie);
 

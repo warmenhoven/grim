@@ -24,6 +24,9 @@ struct session_info {
 extern void dvprintf(char *, ...);
 
 extern int init_faim();
+extern void add_group(char *, short);
+extern void add_buddy(char *, short);
+extern void buddy_state(char *, int);
 
 extern int read_config();
 

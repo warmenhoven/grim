@@ -2,6 +2,7 @@
 #include <curses.h>
 #include <ctype.h>
 #include <string.h>
+#include <time.h>
 #include "main.h"
 #include "list.h"
 
@@ -21,6 +22,117 @@ static list *tabs = NULL;
 static unsigned int cur_tab = 0;
 
 static int sound = 1;
+
+struct group {
+	char *name;
+	short gid;
+	list *members;
+};
+
+struct buddy {
+	char *name;
+	int   state;
+};
+
+static list *pals = NULL;
+static list *notfound = NULL;
+
+static char *nospaces(char *x)
+{
+	static char m[17];
+	int i = 0, j = 0;
+	while (x[i]) {
+		if (x[i] != ' ')
+			m[j++] = x[i];
+		i++;
+	}
+	m[j] = 0;
+	return m;
+}
+
+void add_group(char *name, short gid)
+{
+	list *l = pals;
+	struct group *g;
+	while (l) {
+		g = l->data;
+		if (g->gid == gid)
+			return;
+		l = l->next;
+	}
+	g = malloc(sizeof (struct group));
+	g->name = strdup(name);
+	g->gid = gid;
+	g->members = NULL;
+	pals = list_append(pals, g);
+}
+
+void add_buddy(char *name, short gid)
+{
+	list *l = pals;
+	struct group *g;
+	struct buddy *b;
+	while (l) {
+		g = l->data;
+		if (g->gid == gid)
+			break;
+		l = l->next;
+	}
+	if (!l)
+		return;
+
+	b = malloc(sizeof (struct buddy));
+	b->name = strdup(nospaces(name));
+	b->state = 0;
+	if (notfound) {
+		l = notfound;
+		while (l) {
+			struct buddy *t = l->data;
+			if (!strcasecmp(b->name, t->name)) {
+				free(b->name);
+				b->name = t->name;
+				b->state = t->state;
+				dvprintf("%s is %s", b->name, b->state ? "online" : "offline");
+				notfound = list_remove(notfound, t);
+				free(t);
+				l = notfound;
+				continue;
+			}
+			l = l->next;
+		}
+	}
+	g->members = list_append(g->members, b);
+}
+
+void buddy_state(char *name, int state)
+{
+	list *l = pals;
+	int found = 0;
+	while (l) {
+		struct group *g = l->data;
+		list *m = g->members;
+		while (m) {
+			struct buddy *b = m->data;
+			if (!strcasecmp(b->name, nospaces(name)) && b->state != state) {
+				time_t tm = time(NULL);
+				struct tm *stm = localtime(&tm);
+
+				b->state = state;
+				dvprintf("%02d:%02d:%02d %s is %s", stm->tm_hour, stm->tm_min,
+						stm->tm_sec, b->name, b->state ? "online" : "offline");
+				found = 1;
+			}
+			m = m->next;
+		}
+		l = l->next;
+	}
+	if (!found) {
+		struct buddy *t = malloc(sizeof (struct buddy));
+		t->name = strdup(nospaces(name));
+		t->state = state;
+		notfound = list_append(notfound, t);
+	}
+}
 
 static list *wrap(char *text, int cols)
 {
@@ -194,19 +306,6 @@ int init_window()
 void end_window()
 {
 	endwin();
-}
-
-static char *nospaces(char *x)
-{
-	static char m[17];
-	int i = 0, j = 0;
-	while (x[i]) {
-		if (x[i] != ' ')
-			m[j++] = x[i];
-		i++;
-	}
-	m[j] = 0;
-	return m;
 }
 
 static struct tab *find_tab(char *who)
@@ -446,6 +545,9 @@ static void process_command()
 		sound = 1;
 	} else if (!strcasecmp(x, "sound")) {
 		dvprintf("sound is %s", sound ? "on" : "off");
+	} else if (!strcasecmp(x, "date")) {
+		time_t t = time(NULL);
+		dvprintf(ctime(&t));
 	}
 }
 
