@@ -6,6 +6,7 @@
 #include "main.h"
 #include "list.h"
 
+#define BLWID 13
 #define ENHEI 4
 
 static unsigned int cursor_x = 0;
@@ -50,6 +51,33 @@ static char *nospaces(char *x)
 	return m;
 }
 
+static void draw_blist()
+{
+	int pos = 0;
+	list *p = pals;
+	while (pos < COLS) {
+		int i;
+		for (i = 0; i < BLWID; i++)
+			mvaddch(pos, i, ' ');
+		pos++;
+	}
+	pos = 0;
+	while (p) {
+		struct group *g = p->data;
+		list *m = g->members;
+		while (m) {
+			struct buddy *b = m->data;
+			if (b->state) {
+				mvaddstr(pos++, 0, b->name);
+			}
+			m = m->next;
+		}
+		p = p->next;
+	}
+
+	move(cursor_y, cursor_x);
+}
+
 void add_group(char *name, short gid)
 {
 	list *l = pals;
@@ -72,6 +100,7 @@ void add_buddy(char *name, short gid)
 	list *l = pals;
 	struct group *g;
 	struct buddy *b;
+	int redraw = 0;
 	while (l) {
 		g = l->data;
 		if (g->gid == gid)
@@ -92,16 +121,20 @@ void add_buddy(char *name, short gid)
 				free(b->name);
 				b->name = t->name;
 				b->state = t->state;
-				dvprintf("%s is %s", b->name, b->state ? "online" : "offline");
 				notfound = list_remove(notfound, t);
 				free(t);
 				l = notfound;
+				redraw = 1;
 				continue;
 			}
 			l = l->next;
 		}
 	}
 	g->members = list_append(g->members, b);
+	if (redraw) {
+		draw_blist();
+		refresh();
+	}
 }
 
 void buddy_state(char *name, int state)
@@ -114,12 +147,7 @@ void buddy_state(char *name, int state)
 		while (m) {
 			struct buddy *b = m->data;
 			if (!strcasecmp(b->name, nospaces(name)) && b->state != state) {
-				time_t tm = time(NULL);
-				struct tm *stm = localtime(&tm);
-
 				b->state = state;
-				dvprintf("%02d:%02d:%02d %s is %s", stm->tm_hour, stm->tm_min,
-						stm->tm_sec, b->name, b->state ? "online" : "offline");
 				found = 1;
 			}
 			m = m->next;
@@ -131,6 +159,9 @@ void buddy_state(char *name, int state)
 		t->name = strdup(nospaces(name));
 		t->state = state;
 		notfound = list_append(notfound, t);
+	} else {
+		draw_blist();
+		refresh();
 	}
 }
 
@@ -188,7 +219,7 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 			if (strlen(d) > i)
 				i -= strlen(d);
 			else {
-				cursor_x = i;
+				cursor_x = BLWID + 1 + i;
 				cursor_y = t - 1;
 				cursor = FALSE;
 			}
@@ -201,15 +232,16 @@ static void draw_list(list *lst, int t, int l, int b, int r, bool cursor)
 
 static void draw_tabs()
 {
-	int i = 0, pos = 1;
+	int i = 0, pos = BLWID + 2;
 	list *t = tabs;
 	struct tab *ct = NULL;
 
 	/* draw the horizontal line separating the tabs from the view */
-	mvhline(1, 0, ACS_HLINE, COLS);
+	mvhline(1, BLWID + 1, ACS_HLINE, 100);
+	mvaddch(1, BLWID, ACS_LTEE);
 
 	/* clear the old titles */
-	move(0, 0);
+	move(0, BLWID + 1);
 	clrtoeol();
 
 	/* draw the tabs, but only titles except for the cur_tab */
@@ -235,12 +267,12 @@ static void draw_tabs()
 
 	/* clear out the old tab */
 	for (i = 2; i < LINES - ENHEI; i++) {
-		move(i, 0);
+		move(i, BLWID + 1);
 		clrtoeol();
 	}
 
 	/* now draw the new one */
-	draw_list(ct->text, 2, 0, LINES - ENHEI, COLS, FALSE);
+	draw_list(ct->text, 2, BLWID + 1, LINES - ENHEI, COLS, FALSE);
 }
 
 static void draw_entry()
@@ -250,17 +282,17 @@ static void draw_entry()
 
 	/* clear all the old text */
 	for (i = LINES - ENHEI + 1; i < LINES; i++) {
-		move(i, 0);
+		move(i, BLWID + 1);
 		clrtoeol();
 	}
 
 	/* draw the text. draw_list also places the cursor */
 	if (entry_text && *entry_text) {
 		l = list_new(entry_text);
-		draw_list(l, LINES - ENHEI + 1, 0, LINES, COLS - 1, TRUE);
+		draw_list(l, LINES - ENHEI + 1, BLWID + 1, LINES, COLS - 1, TRUE);
 		list_free(l);
 	} else {
-		cursor_x = 0;
+		cursor_x = BLWID + 1;
 		cursor_y = LINES - ENHEI + 1;
 		move(cursor_y, cursor_x);
 	}
@@ -268,8 +300,14 @@ static void draw_entry()
 
 void redraw_screen()
 {
+	/* draw the vertical line */
+	mvvline(0, BLWID, ACS_VLINE, 100);
+
 	/* now the horizontal one separating the view from the entry */
-	mvhline(LINES - ENHEI, 0, ACS_HLINE, COLS);
+	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, 100);
+	mvaddch(LINES - ENHEI, BLWID, ACS_LTEE);
+
+	draw_blist();
 
 	/* draw the current tab */
 	draw_tabs();
@@ -545,9 +583,6 @@ static void process_command()
 		sound = 1;
 	} else if (!strcasecmp(x, "sound")) {
 		dvprintf("sound is %s", sound ? "on" : "off");
-	} else if (!strcasecmp(x, "date")) {
-		time_t t = time(NULL);
-		dvprintf(ctime(&t));
 	}
 }
 
