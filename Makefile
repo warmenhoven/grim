@@ -1,13 +1,11 @@
 CC = gcc
 LDLIBS = -lcurses -lnbio
-CFLAGS += -g -I/usr/include/libnbio -Wall
+CFLAGS += -g3 -O3 -I/usr/include/libnbio -Wall
 
 OBJS = config.o display.o list.o main.o
 
 ifneq "$(PERF)" ""
-CFLAGS += -fprofile-arcs -ftest-coverage -O0
-else
-CFLAGS += -O3
+CFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
 ifneq "$(JABBER)" ""
