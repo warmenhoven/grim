@@ -56,6 +56,24 @@ int read_config()
 		}
 		while (fgets(line, 8192, f)) {
 			line[strlen(line)-1] = 0;
+#ifdef JABBER
+			if (!strncmp(line, "jid ", 4)) {
+				char *x = strchr(line, '@');
+				if (!x) {
+					fprintf(stderr, "invalid jid\n");
+					return 1;
+				}
+				*x++ = 0;
+				si.screenname = strdup(line + 4);
+				si.authorizer = strdup(x);
+			} else if (!strncmp(line, "key ", 4)) {
+				si.password = strdup(line + 4);
+			} else if (!strncmp(line, "jpt ", 4)) {
+				si.port = atoi(line + 4);
+			} else if (!strncmp(line, "res ", 4)) {
+				si.resource = strdup(line + 4);
+			}
+#else
 			if (!strncmp(line, "user ", 5)) {
 				si.screenname = strdup(line + 5);
 			} else if (!strncmp(line, "pass ", 5)) {
@@ -64,9 +82,8 @@ int read_config()
 				si.authorizer = strdup(line + 5);
 			} else if (!strncmp(line, "port ", 5)) {
 				si.port = atoi(line + 5);
-			} else if (!strncmp(line, "res ", 4)) {
-				si.resource = strdup(line + 4);
 			}
+#endif
 		}
 		fclose(f);
 	}
