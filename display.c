@@ -224,7 +224,13 @@ static list *wrap(char *text, int cols)
 
 static list *append_text(list *l, char *x)
 {
-	char *m;
+	char *m, *t = x;
+
+	while (*t) {
+		if (*t == '\r')
+			*t = ' ';
+		t++;
+	}
 
 	while ((m = strchr(x, '\n'))) {
 		*m = 0;
