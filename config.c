@@ -20,6 +20,10 @@ static int defaults()
 	fprintf(f, "auth login.oscar.aol.com\n");
 	fprintf(f, "port 5190\n");
 	fprintf(f, "res grim\n");
+	fprintf(f, "\n");
+	fprintf(f, "jid eric@warmenhoven.org\n");
+	fprintf(f, "jpt 5222\n");
+	fprintf(f, "key password\n");
 	fclose(f);
 
 	fprintf(stderr, "Please modify your %s\n", path);

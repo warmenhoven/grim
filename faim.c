@@ -495,7 +495,7 @@ static int cb_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_end(ap);
 
 	if (inforeq == AIM_GETINFO_GENERALINFO) {
-		char buf[26]; ctime_r(&userinfo->onlinesince, buf); buf[strlen(buf)-1] = 0;
+		char buf[26]; ctime_r((const time_t *)&userinfo->onlinesince, buf); buf[strlen(buf)-1] = 0;
 		if (userinfo->idletime)
 			dvprintf("%s: idletime: %d minutes", userinfo->sn, userinfo->idletime);
 		if (aim_userinfo_warnlevel(userinfo))
