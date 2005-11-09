@@ -689,3 +689,7 @@ void keepalive()
 	for (cur = si.sess.connlist; cur; cur = cur->next)
 		aim_flap_nop(&si.sess, cur);
 }
+
+void presence(char *to, int avail)
+{
+}
