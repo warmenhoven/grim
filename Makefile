@@ -1,5 +1,5 @@
 CC = gcc
-LDLIBS = -lcurses -lnbio
+LDLIBS = -lcurses /usr/lib/libnbio.a
 CFLAGS += -g3 -O3 -I/usr/include/libnbio -Wall
 
 OBJS = config.o display.o list.o main.o

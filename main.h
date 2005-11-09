@@ -59,6 +59,7 @@ extern int init_server();
 extern void getinfo(char *);
 extern void usersearch(char *);
 extern void send_im(char *, char *);
+extern void presence(char *, int);
 extern void keepalive();
 
 #ifdef SOUND

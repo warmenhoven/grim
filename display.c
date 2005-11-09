@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #include "list.h"
@@ -547,6 +548,33 @@ static char *strip_html(char *x)
 	return y;
 }
 
+static char *myctime(void)
+{
+	static char retbuf[64];
+	struct tm *lt;
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+	lt = localtime((time_t *)&tv.tv_sec);
+	strftime(retbuf, 64, "%a %b %e %H:%M:%S %Z %Y", lt);
+
+	return retbuf;
+}
+
+static void log_msg(char *from, char *to, char *msg)
+{
+	char path[8192];
+	FILE *f;
+
+	sprintf(path, "%s/.%s/log", getenv("HOME"), PROG);
+	if (!(f = fopen(path, "a"))) {
+		fprintf(stderr, "Can't write %s\n", path);
+		return;
+	}
+	fprintf(f, "%s | %s | %s | %s\n", myctime(), from, to, msg);
+	fclose(f);
+}
+
 void got_im(char *from, char *msg, int away)
 {
 	struct tab *t = find_tab(from);
@@ -565,6 +593,7 @@ void got_im(char *from, char *msg, int away)
 				away ? "<AUTO> " : "", from, h);
 
 	t->text = append_text(t->text, x);
+	log_msg(from, si.screenname, h);
 	free(x);
 
 	if (list_nth(tabs, cur_tab) != t)
@@ -630,6 +659,10 @@ static void process_command()
 		dvprintf("sound is %s", sound ? "on" : "off");
 	} else if (!strncasecmp(x, "search ", 7) && x[7]) {
 		usersearch(x + 7);
+	} else if (!strncasecmp(x, "avail ", 6) && x[6]) {
+		presence(x + 6, 1);
+	} else if (!strncasecmp(x, "unavail ", 8) && x[8]) {
+		presence(x + 8, 0);
 	} else if (!strcasecmp(x, "debug")) {
 		print_anyway = !print_anyway;
 	} else if (!strcasecmp(x, "help")) {
@@ -664,13 +697,14 @@ static void send_message()
 		sprintf(x, "%02d:%02d:%02d %s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
 				si.screenname, h);
 
+	t->text = append_text(t->text, x);
+	log_msg(si.screenname, t->title, h);
+
 	/*
 	 * jabber's send_im triggers a call to dvprintf which calls strip_html
 	 * so it has to go after we use the string returned by strip_html
 	 */
 	send_im(t->title, entry_text);
-
-	t->text = append_text(t->text, x);
 
 	draw_tabs();
 	refresh();

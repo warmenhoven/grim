@@ -75,7 +75,7 @@ static void jabber_process()
 		char *type = xml_get_attrib(si.sess.curr, "type");
 		void *status = xml_get_child(si.sess.curr, "status");
 		char *slash;
-		if (!from || !status) {
+		if (!from || !(status || (type && !strcmp(type, "unavailable")))) {
 			dvprintf("presence with no %s", from ? "status" : "from");
 			xml_free(si.sess.curr);
 			si.sess.curr = NULL;
@@ -123,21 +123,26 @@ static void jabber_roster_cb()
 		while (children) {
 			void *item = children->data;
 			char *jid, *sub;
+			char *slash;
 			children = children->next;
 			sub = xml_get_attrib(item, "subscription");
 			if (!sub) {
 				dvprintf("no subscription information");
 				continue;
 			}
+			/*
 			if (strcmp(sub, "both") && strcmp(sub, "to")) {
 				dvprintf("subscription not to");
 				continue;
 			}
+			*/
 			jid = xml_get_attrib(item, "jid");
 			if (!jid) {
 				dvprintf("no jid?");
 				continue;
 			}
+			if ((slash = strchr(jid, '/')) != NULL)
+				*slash = 0;
 			add_buddy(jid, 1);
 		}
 	}
@@ -349,4 +354,18 @@ void send_im(char *to, char *msg)
 
 void keepalive()
 {
+}
+
+void presence(char *to, int avail)
+{
+	int len = strlen(to) + 1024;
+	char *send = malloc(len);
+	if (!send)
+		return;
+	if (avail)
+		snprintf(send, len, "<presence to='%s'><status>Available</status></presence>", to);
+	else
+		snprintf(send, len, "<presence to='%s' type='unavailable' />", to);
+	jabber_send(send);
+	free(send);
 }
