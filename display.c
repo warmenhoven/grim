@@ -657,14 +657,18 @@ static void send_message()
 	h = strip_html(entry_text);
 	x = malloc(strlen(si.screenname) + strlen(h) + 100);
 
-	send_im(t->title, entry_text);
-
 	if (!strncasecmp(h, "/me ", 4))
 		sprintf(x, "%02d:%02d:%02d *** %s %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
 				si.screenname, h + 4);
 	else
 		sprintf(x, "%02d:%02d:%02d %s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
 				si.screenname, h);
+
+	/*
+	 * jabber's send_im triggers a call to dvprintf which calls strip_html
+	 * so it has to go after we use the string returned by strip_html
+	 */
+	send_im(t->title, entry_text);
 
 	t->text = append_text(t->text, x);
 

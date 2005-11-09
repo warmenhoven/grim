@@ -16,7 +16,7 @@ static void jabber_send(char *stream)
 {
 	char *buf = strdup(stream);
 
-	dvprintf("sent %d: %s", strlen(buf), buf);
+	/* dvprintf("sent %d: %s", strlen(buf), buf); */
 
 	if (nbio_addtxvector(&gnb, si.sess.fdt, buf, strlen(buf)) == -1) {
 		dvprintf("nbio_addtxvector: %s", strerror(errno));
@@ -245,7 +245,7 @@ static int jabber_callback(void *nb, int event, nbio_fd_t *fdt)
 		}
 		buf[len] = '\0';
 
-		dvprintf("recv %d: %s", strlen(buf), buf);
+		/* dvprintf("recv %d: %s", strlen(buf), buf); */
 
 		if (!XML_Parse(si.sess.parser, buf, len, 0)) {
 			dvprintf("parser error: %s", XML_ErrorString(XML_GetErrorCode(si.sess.parser)));
