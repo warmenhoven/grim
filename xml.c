@@ -64,7 +64,12 @@ void xml_data(void *n, const char *data, int len)
 	if (!node)
 		return;
 
-	node->data = strndup(data, len);
+	if (node->data) {
+		node->data = realloc(node->data, strlen(node->data) + len + 1);
+		strncat(node->data, data, len);
+	} else {
+		node->data = strndup(data, len);
+	}
 }
 
 void *xml_parent(void *child)

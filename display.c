@@ -731,6 +731,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		clear();
 		redraw_screen();
 		break;
+	case 10:	/* ^J */
 	case 13:	/* ^M, enter */
 		if (newlines) {
 			if (cur_tab)
