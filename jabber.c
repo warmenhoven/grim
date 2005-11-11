@@ -343,13 +343,38 @@ void usersearch(char *email)
 
 void send_im(char *to, char *msg)
 {
-	int len = strlen(msg) + strlen(to) + 1024;
+	int len = (strlen(msg) * 5) + strlen(to) + 1024;
+	char *fmt = malloc(strlen(msg) * 5);
 	char *send = malloc(len);
+	int i, j;
 	if (!send)
 		return;
-	snprintf(send, len, "<message to='%s' type='chat'><body>%s</body></message>", to, msg);
+	for (i = 0, j = 0; msg[i]; i++) {
+		if (msg[i] == '&') {
+			fmt[j++] = '&';
+			fmt[j++] = 'a';
+			fmt[j++] = 'm';
+			fmt[j++] = 'p';
+			fmt[j++] = ';';
+		} else if (msg[i] == '<') {
+			fmt[j++] = '&';
+			fmt[j++] = 'l';
+			fmt[j++] = 't';
+			fmt[j++] = ';';
+		} else if (msg[i] == '>') {
+			fmt[j++] = '&';
+			fmt[j++] = 'g';
+			fmt[j++] = 't';
+			fmt[j++] = ';';
+		} else {
+			fmt[j++] = msg[i];
+		}
+	}
+	fmt[j++] = 0;
+	snprintf(send, len, "<message to='%s' type='chat'><body>%s</body></message>", to, fmt);
 	jabber_send(send);
 	free(send);
+	free(fmt);
 }
 
 void keepalive()
