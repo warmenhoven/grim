@@ -344,7 +344,7 @@ void usersearch(char *email)
 void send_im(char *to, char *msg)
 {
 	int len = (strlen(msg) * 5) + strlen(to) + 1024;
-	char *fmt = malloc(strlen(msg) * 5);
+	char *fmt = malloc(strlen(msg) * 5) + 1;
 	char *send = malloc(len);
 	int i, j;
 	if (!send)
