@@ -15,7 +15,7 @@ OBJS += faim.o
 else
 LDLIBS += -lexpat
 CFLAGS += -DJABBER
-OBJS += jabber.o xml.o
+OBJS += jabber.o sha1.o xml.o
 endif
 
 ifneq "$(SOUND)" ""

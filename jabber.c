@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "main.h"
+#include "sha1.h"
 #include "xml.h"
 
 typedef struct _jiq {
@@ -197,16 +198,23 @@ static void jabber_auth(int type)
 	n = snprintf(auth, sizeof(auth), "<iq id='%d' type='set'><query xmlns='jabber:iq:auth'><username>%s</username><resource>%s</resource>",
 		     si.sess.id, si.screenname, si.resource ? si.resource : "grim");
 
-#if 0
-	if (type == 0) {
-	} else if (type == 1) {
-		n += snprintf(auth + n, sizeof(auth) - n, "<digest>%s</digest>", si.password);
+	if (type == 1) {
+		SHA1Context sha1ctxt;
+		uint8_t digest[SHA1HashSize];
+		int i;
+
+		SHA1Reset(&sha1ctxt);
+		SHA1Input(&sha1ctxt, si.sess.streamid, strlen(si.sess.streamid));
+		SHA1Input(&sha1ctxt, si.password, strlen(si.password));
+		SHA1Result(&sha1ctxt, digest);
+
+		n += snprintf(auth + n, sizeof(auth) - n, "<digest>");
+		for (i = 0; i < SHA1HashSize; i++)
+			n += snprintf(auth + n, sizeof(auth) - n, "%02x", digest[i]);
+		n += snprintf(auth + n, sizeof(auth) - n, "</digest>");
 	} else if (type == 2) {
 		n += snprintf(auth + n, sizeof(auth) - n, "<password>%s</password>", si.password);
 	}
-#else
-	n += snprintf(auth + n, sizeof(auth) - n, "<password>%s</password>", si.password);
-#endif
 
 	snprintf(auth + n, sizeof(auth) - n, "</query></iq>");
 
@@ -220,12 +228,12 @@ static void jabber_start_cb()
 		dvprintf("auth with no query");
 		return;
 	}
-	if (xml_get_child(query, "sequence") && xml_get_child(query, "token"))
-		jabber_auth(0);
-	else if (xml_get_child(query, "digest"))
+	if (xml_get_child(query, "digest"))
 		jabber_auth(1);
 	else if (xml_get_child(query, "password"))
 		jabber_auth(2);
+	else
+		dvprintf("unknown auth query");
 }
 
 static void jabber_start(void *data, const char *el, const char **attr)
@@ -234,6 +242,14 @@ static void jabber_start(void *data, const char *el, const char **attr)
 
 	if (!strcmp(el, "stream:stream")) {
 		char iq[1024];
+
+		si.sess.streamid = NULL;
+		for (i = 0; attr[i]; i += 2) {
+			if (strcasecmp(attr[i], "id") == 0) {
+				si.sess.streamid = strdup(attr[i + 1]);
+			}
+		}
+
 		snprintf(iq, sizeof(iq), "<iq id='%d' type='get'><query xmlns='jabber:iq:auth'><username>%s</username></query></iq>", si.sess.id, si.screenname);
 		jabber_send_iq(iq, si.sess.id++, jabber_start_cb);
 		return;

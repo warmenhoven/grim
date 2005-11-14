@@ -20,6 +20,7 @@ extern struct session_info si;
 typedef struct _jabber_session {
 	nbio_fd_t *fdt;
 	XML_Parser parser;
+	char *streamid;
 	int id;
 	void *curr;
 	list *iqs;
