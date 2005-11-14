@@ -1,6 +1,7 @@
+TOPDIR = /usr
 CC = gcc
-LDLIBS = -lcurses /usr/lib/libnbio.a
-CFLAGS += -g3 -O3 -I/usr/include/libnbio -Wall
+LDLIBS = -lcurses $(TOPDIR)/lib/libnbio.a
+CFLAGS += -g3 -O3 -I$(TOPDIR)/include/libnbio -Wall
 
 OBJS = config.o display.o list.o main.o
 
@@ -42,6 +43,6 @@ clean:
 dist:
 	rm -f $(TARGET).tgz
 	mkdir -p tmp/$(TARGET)-`date +%Y%m%d`
-	cp Makefile *.c main.h list.h xml.h Receive.au grim.1 tmp/$(TARGET)-`date +%Y%m%d`
+	cp Makefile *.c list.h main.h sha1.h xml.h Receive.au grim.1 tmp/$(TARGET)-`date +%Y%m%d`
 	cd tmp && tar zcf ../$(TARGET).tgz $(TARGET)-`date +%Y%m%d`
 	rm -rf tmp
