@@ -8,14 +8,14 @@ ifneq "$(PERF)" ""
 CFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
-ifneq "$(JABBER)" ""
-LDLIBS += -lexpat
-CFLAGS += -DJABBER
-OBJS += jabber.o xml.o
-else
+ifneq "$(AIM)" ""
 LDLIBS += -lfaim
 CFLAGS += -I/usr/include/libfaim
 OBJS += faim.o
+else
+LDLIBS += -lexpat
+CFLAGS += -DJABBER
+OBJS += jabber.o xml.o
 endif
 
 ifneq "$(SOUND)" ""

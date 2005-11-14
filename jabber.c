@@ -16,8 +16,6 @@ static void jabber_send(char *stream)
 {
 	char *buf = strdup(stream);
 
-	/* dvprintf("sent %d: %s", strlen(buf), buf); */
-
 	if (nbio_addtxvector(&gnb, si.sess.fdt, buf, strlen(buf)) == -1) {
 		dvprintf("nbio_addtxvector: %s", strerror(errno));
 		free(buf);
@@ -38,71 +36,85 @@ static void jabber_send_iq(char *stream, int id, void (*cb)())
 	jabber_send(stream);
 }
 
+static void jabber_process_iq()
+{
+	const char *type = xml_get_attrib(si.sess.curr, "type");
+	if (!type)
+		return;
+	if (!strcasecmp(type, "result")) {
+		const char *id = xml_get_attrib(si.sess.curr, "id");
+		int q;
+		list *l = si.sess.iqs;
+		if (!id) {
+			dvprintf("result with no id");
+			return;
+		}
+		q = atoi(id);
+		while (l) {
+			jiq *j = l->data;
+			if (j->id == q) {
+				j->cb();
+				break;
+			}
+			l = l->next;
+		}
+		if (!l)
+			dvprintf("result with no callback");
+	} else if (!strcasecmp(type, "error")) {
+		dvprintf("error");
+	} else {
+		dvprintf("unhandled iq");
+	}
+}
+
+static void jabber_process_presence()
+{
+	char *from = xml_get_attrib(si.sess.curr, "from");
+	char *type = xml_get_attrib(si.sess.curr, "type");
+	void *status = xml_get_child(si.sess.curr, "status");
+	char *slash;
+	if (!from || !(status || (type && !strcmp(type, "unavailable")))) {
+		dvprintf("presence with no %s", from ? "status" : "from");
+		return;
+	}
+	if ((slash = strchr(from, '/')) != NULL)
+		*slash = 0;
+	if (type && !strcmp(type, "unavailable"))
+		buddy_state(from, 0);
+	else
+		buddy_state(from, 1);
+}
+
+static void jabber_process_message()
+{
+	char *from = xml_get_attrib(si.sess.curr, "from");
+	char *type = xml_get_attrib(si.sess.curr, "type");
+	char *body = xml_get_child(si.sess.curr, "body");
+	char *msg = NULL;
+	char *slash;
+	if (type && strcasecmp(type, "error") == 0) {
+		dvprintf("error sending to %s", from);
+		return;
+	}
+	if (body)
+		msg = xml_get_data(body);
+	if (!from || !msg) {
+		dvprintf("message with no %s", from ? "msg" : "from");
+		return;
+	}
+	if ((slash = strchr(from, '/')) != NULL)
+		*slash = 0;
+	got_im(from, msg, 0);
+}
+
 static void jabber_process()
 {
 	if (!strcmp(xml_name(si.sess.curr), "iq")) {
-		const char *type = xml_get_attrib(si.sess.curr, "type");
-		if (!type)
-			return;
-		if (!strcasecmp(type, "result")) {
-			const char *id = xml_get_attrib(si.sess.curr, "id");
-			int q;
-			list *l = si.sess.iqs;
-			if (!id) {
-				dvprintf("result with no id");
-				xml_free(si.sess.curr);
-				si.sess.curr = NULL;
-				return;
-			}
-			q = atoi(id);
-			while (l) {
-				jiq *j = l->data;
-				if (j->id == q) {
-					j->cb();
-					break;
-				}
-				l = l->next;
-			}
-			if (!l)
-				dvprintf("result with no callback");
-		} else if (!strcasecmp(type, "error")) {
-			dvprintf("error");
-		} else {
-			dvprintf("unhandled iq");
-		}
+		jabber_process_iq();
 	} else if (!strcmp(xml_name(si.sess.curr), "presence")) {
-		char *from = xml_get_attrib(si.sess.curr, "from");
-		char *type = xml_get_attrib(si.sess.curr, "type");
-		void *status = xml_get_child(si.sess.curr, "status");
-		char *slash;
-		if (!from || !(status || (type && !strcmp(type, "unavailable")))) {
-			dvprintf("presence with no %s", from ? "status" : "from");
-			xml_free(si.sess.curr);
-			si.sess.curr = NULL;
-			return;
-		}
-		if ((slash = strchr(from, '/')) != NULL)
-			*slash = 0;
-		if (type && !strcmp(type, "unavailable"))
-			buddy_state(from, 0);
-		else
-			buddy_state(from, 1);
+		jabber_process_presence();
 	} else if (!strcmp(xml_name(si.sess.curr), "message")) {
-		char *from = xml_get_attrib(si.sess.curr, "from");
-		char *body = xml_get_child(si.sess.curr, "body");
-		char *msg = NULL;
-		char *slash;
-		if (body)
-			msg = xml_get_data(body);
-		if (!from || !msg) {
-			dvprintf("message with no %s", from ? "msg" : "from");
-			xml_free(si.sess.curr);
-			si.sess.curr = NULL;
-			return;
-		}
-		if ((slash = strchr(from, '/')) != NULL)
-			*slash = 0;
-		got_im(from, msg, 0);
+		jabber_process_message();
 	} else
 		dvprintf("unhandled xml parent %s", xml_name(si.sess.curr));
 
@@ -250,8 +262,6 @@ static int jabber_callback(void *nb, int event, nbio_fd_t *fdt)
 		}
 		buf[len] = '\0';
 
-		/* dvprintf("recv %d: %s", strlen(buf), buf); */
-
 		if (!XML_Parse(si.sess.parser, buf, len, 0)) {
 			dvprintf("parser error: %s", XML_ErrorString(XML_GetErrorCode(si.sess.parser)));
 			return -1;
@@ -344,11 +354,16 @@ void usersearch(char *email)
 void send_im(char *to, char *msg)
 {
 	int len = (strlen(msg) * 5) + strlen(to) + 1024;
-	char *fmt = malloc(strlen(msg) * 5) + 1;
+	char *fmt = malloc(len);
 	char *send = malloc(len);
 	int i, j;
-	if (!send)
+	if (!send || !fmt) {
+		if (fmt)
+			free(fmt);
+		if (send)
+			free(send);
 		return;
+	}
 	for (i = 0, j = 0; msg[i]; i++) {
 		if (msg[i] == '&') {
 			fmt[j++] = '&';
