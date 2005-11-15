@@ -91,13 +91,17 @@ static void jabber_process_presence()
 	char *type = xml_get_attrib(si.sess.curr, "type");
 	void *status = xml_get_child(si.sess.curr, "status");
 	char *slash;
-	if (!from || !(status || (type && !strcmp(type, "unavailable")))) {
+	if (type && !strcasecmp(type, "error")) {
+		dvprintf("error in presence: from %s", from ? from : "not present");
+		return;
+	}
+	if (!from || !(status || (type && !strcasecmp(type, "unavailable")))) {
 		dvprintf("presence with no %s", from ? "status" : "from");
 		return;
 	}
 	if ((slash = strchr(from, '/')) != NULL)
 		*slash = 0;
-	if (type && !strcmp(type, "unavailable"))
+	if (type && !strcasecmp(type, "unavailable"))
 		buddy_state(from, 0);
 	else
 		buddy_state(from, 1);
@@ -110,7 +114,7 @@ static void jabber_process_message()
 	char *body = xml_get_child(si.sess.curr, "body");
 	char *msg = NULL;
 	char *slash;
-	if (type && strcasecmp(type, "error") == 0) {
+	if (type && !strcasecmp(type, "error")) {
 		dvprintf("error sending to %s", from);
 		return;
 	}
@@ -122,16 +126,23 @@ static void jabber_process_message()
 	}
 	if ((slash = strchr(from, '/')) != NULL)
 		*slash = 0;
-	got_im(from, msg, 0);
+	if (type && !strcasecmp(type, "headline")) {
+		char *subject = xml_get_child(si.sess.curr, "subject");
+		dvprintf("headline from %s:", from);
+		if (subject) dvprintf("subject: %s", xml_get_data(subject));
+		dvprintf("%s", msg);
+	} else {
+		got_im(from, msg, 0);
+	}
 }
 
 static void jabber_process()
 {
-	if (!strcmp(xml_name(si.sess.curr), "iq")) {
+	if (!strcasecmp(xml_name(si.sess.curr), "iq")) {
 		jabber_process_iq();
-	} else if (!strcmp(xml_name(si.sess.curr), "presence")) {
+	} else if (!strcasecmp(xml_name(si.sess.curr), "presence")) {
 		jabber_process_presence();
-	} else if (!strcmp(xml_name(si.sess.curr), "message")) {
+	} else if (!strcasecmp(xml_name(si.sess.curr), "message")) {
 		jabber_process_message();
 	} else
 		dvprintf("unhandled xml parent %s", xml_name(si.sess.curr));
@@ -161,7 +172,7 @@ static void jabber_roster_cb()
 				continue;
 			}
 			/*
-			if (strcmp(sub, "both") && strcmp(sub, "to")) {
+			if (strcasecmp(sub, "both") && strcasecmp(sub, "to")) {
 				dvprintf("subscription not to");
 				continue;
 			}
@@ -240,12 +251,12 @@ static void jabber_start(void *data, const char *el, const char **attr)
 {
 	int i;
 
-	if (!strcmp(el, "stream:stream")) {
+	if (!strcasecmp(el, "stream:stream")) {
 		char iq[1024];
 
 		si.sess.streamid = NULL;
 		for (i = 0; attr[i]; i += 2) {
-			if (strcasecmp(attr[i], "id") == 0) {
+			if (!strcasecmp(attr[i], "id")) {
 				si.sess.streamid = strdup(attr[i + 1]);
 			}
 		}
@@ -273,7 +284,7 @@ static void jabber_end(void *data, const char *el)
 
 	if (!(parent = xml_parent(si.sess.curr)))
 		jabber_process();
-	else if (!strcmp(xml_name(si.sess.curr), el))
+	else if (!strcasecmp(xml_name(si.sess.curr), el))
 		si.sess.curr = parent;
 }
 
