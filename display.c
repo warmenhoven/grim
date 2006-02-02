@@ -100,6 +100,24 @@ static void draw_blist()
 	move(cursor_y, cursor_x);
 }
 
+static struct buddy *find_buddy(char *name)
+{
+	list *l = pals;
+	while (l) {
+		struct group *g = l->data;
+		list *m = g->members;
+		while (m) {
+			struct buddy *b = m->data;
+			if (!strcasecmp(b->name, nospaces(name))) {
+				return (b);
+			}
+			m = m->next;
+		}
+		l = l->next;
+	}
+	return (NULL);
+}
+
 void add_group(char *name, short gid)
 {
 	list *l = pals;
@@ -132,6 +150,9 @@ void add_buddy(char *name, short gid)
 	if (!l)
 		return;
 
+	if (find_buddy(name))
+		return;
+
 	b = malloc(sizeof (struct buddy));
 	b->name = strdup(nospaces(name));
 	if ((int)strlen(b->name) >= max_blwid)
@@ -162,40 +183,27 @@ void add_buddy(char *name, short gid)
 
 void buddy_state(char *name, int state)
 {
-	list *l = pals;
-	int found = 0;
-	while (l) {
-		struct group *g = l->data;
-		list *m = g->members;
-		while (m) {
-			struct buddy *b = m->data;
-			if (!strcasecmp(b->name, nospaces(name)) && b->state != state) {
-				b->state = state;
-				found = 1;
-				if (strcmp(b->name, nospaces(name)))
-					strcpy(b->name, nospaces(name));
-				if (b->stalk) {
-					time_t tm = time(NULL);
-					struct tm *stm = localtime(&tm);
+	struct buddy *b = find_buddy(name);
+	if (b) {
+		b->state = state;
+		if (strcmp(b->name, nospaces(name)))
+			strcpy(b->name, nospaces(name));
+		if (b->stalk) {
+			time_t tm = time(NULL);
+			struct tm *stm = localtime(&tm);
 
-					dvprintf("%s %s at %d/%d %d:%d:%d", b->name,
-						 state ? "online" : "offline",
-						 stm->tm_mon, stm->tm_mday,
-						 stm->tm_hour, stm->tm_min, stm->tm_sec);
-				}
-			}
-			m = m->next;
+			dvprintf("%s %s at %d/%d %d:%d:%d", b->name,
+					 state ? "online" : "offline",
+					 stm->tm_mon, stm->tm_mday,
+					 stm->tm_hour, stm->tm_min, stm->tm_sec);
 		}
-		l = l->next;
-	}
-	if (!found) {
-		struct buddy *t = malloc(sizeof (struct buddy));
-		t->name = strdup(nospaces(name));
-		t->state = state;
-		notfound = list_append(notfound, t);
-	} else {
 		draw_blist();
 		refresh();
+	} else {
+		b = malloc(sizeof (struct buddy));
+		b->name = strdup(nospaces(name));
+		b->state = state;
+		notfound = list_append(notfound, b);
 	}
 }
 
