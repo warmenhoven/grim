@@ -13,5 +13,6 @@ extern unsigned int list_length(list *);
 extern void *list_nth(list *, int);
 extern list *list_append(list *, void *);
 extern list *list_prepend(list *, void *);
+extern list *list_insert(list *, void *, int);
 extern list *list_remove(list *, void *);
 extern void list_free(list *);

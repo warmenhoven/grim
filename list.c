@@ -50,6 +50,26 @@ list *list_prepend(list *l, void *data)
 	return s;
 }
 
+list *list_insert(list *l, void *data, int place)
+{
+	list *s = l;
+	list *n;
+
+	while (s && place) {
+		s = s->next;
+		place--;
+	}
+
+	if (!s)
+		return l;
+
+	n = list_new(data);
+	n->next = s->next;
+	s->next = n;
+
+	return l;
+}
+
 list *list_remove(list *l, void *data)
 {
 	list *s = l, *p = NULL;

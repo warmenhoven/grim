@@ -861,6 +861,32 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		c += 64;
 		ADD_CHAR(c);
 		break;
+	case 238:	/* M-N */
+		if (cur_tab) {
+			t = list_nth(tabs, cur_tab);
+			tabs = list_remove(tabs, t);
+			if (list_length(tabs) == cur_tab)
+				cur_tab = 1;
+			else
+				cur_tab++;
+			tabs = list_insert(tabs, t, cur_tab - 1);
+			draw_tabs();
+			refresh();
+		}
+		break;
+	case 240:	/* M-P */
+		if (cur_tab) {
+			t = list_nth(tabs, cur_tab);
+			tabs = list_remove(tabs, t);
+			if (cur_tab == 1)
+				cur_tab = list_length(tabs);
+			else
+				cur_tab--;
+			tabs = list_insert(tabs, t, cur_tab - 1);
+			draw_tabs();
+			refresh();
+		}
+		break;
 	case 432:
 	case 433:
 	case 434:
