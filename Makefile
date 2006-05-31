@@ -9,9 +9,9 @@ ifneq "$(PERF)" ""
 CFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
-ifneq "$(AIM)" ""
-LDLIBS += -lfaim
-CFLAGS += -I/usr/include/libfaim
+ifeq "$(JABBER)" ""
+LDLIBS += $(TOPDIR)/lib/libfaim.a
+CFLAGS += -I$(TOPDIR)/include/libfaim
 OBJS += faim.o
 else
 LDLIBS += -lexpat

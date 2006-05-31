@@ -66,7 +66,7 @@ extern void keepalive();
 #ifdef SOUND
 extern void play();
 #else
-#define play()
+#define play() beep()
 #endif
 
 #endif

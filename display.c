@@ -28,7 +28,7 @@ struct tab {
 static list *tabs = NULL;
 static unsigned int cur_tab = 0;
 
-static int sound = 1;
+static int sound = 0;
 static int newlines = 1;
 static int print_anyway = 0;
 static int sp[2];

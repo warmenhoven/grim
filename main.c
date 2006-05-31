@@ -26,7 +26,7 @@ int main()
 		return 1;
 
 	time(&lastnop);
-	while (1) {
+	while (!si.killme) {
 		if ((time(NULL) - lastnop) > 60) {
 			keepalive();
 

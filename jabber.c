@@ -13,7 +13,8 @@ typedef struct _jiq {
 	void (*cb)();
 } jiq;
 
-static void log_xml(char *xml, int send)
+static void
+log_xml(char *xml, int send)
 {
 	char path[8192];
 	FILE *f;
@@ -28,19 +29,23 @@ static void log_xml(char *xml, int send)
 }
 
 
-static void jabber_send(char *stream)
+static void
+jabber_send(char *stream)
 {
 	char *buf = strdup(stream);
 
-	log_xml(stream, 1);
+	if (*stream != '\t')
+		log_xml(stream, 1);
 
-	if (nbio_addtxvector(&gnb, si.sess.fdt, (uint8_t *)buf, strlen(buf)) == -1) {
+	if (nbio_addtxvector(&gnb, si.sess.fdt,
+						 (uint8_t *)buf, strlen(buf)) == -1) {
 		dvprintf("nbio_addtxvector: %s", strerror(errno));
 		free(buf);
 	}
 }
 
-static void jabber_send_iq(char *stream, int id, void (*cb)())
+static void
+jabber_send_iq(char *stream, int id, void (*cb)())
 {
 	jiq *j = malloc(sizeof (jiq));
 	if (!j)
@@ -54,7 +59,8 @@ static void jabber_send_iq(char *stream, int id, void (*cb)())
 	jabber_send(stream);
 }
 
-static void jabber_process_iq()
+static void
+jabber_process_iq()
 {
 	const char *type = xml_get_attrib(si.sess.curr, "type");
 	if (!type)
@@ -85,7 +91,8 @@ static void jabber_process_iq()
 	}
 }
 
-static void jabber_process_presence()
+static void
+jabber_process_presence()
 {
 	char *from = xml_get_attrib(si.sess.curr, "from");
 	char *type = xml_get_attrib(si.sess.curr, "type");
@@ -107,7 +114,8 @@ static void jabber_process_presence()
 		buddy_state(from, 1);
 }
 
-static void jabber_process_message()
+static void
+jabber_process_message()
 {
 	char *from = xml_get_attrib(si.sess.curr, "from");
 	char *type = xml_get_attrib(si.sess.curr, "type");
@@ -136,7 +144,8 @@ static void jabber_process_message()
 	}
 }
 
-static void jabber_process()
+static void
+jabber_process()
 {
 	if (!strcasecmp(xml_name(si.sess.curr), "iq")) {
 		jabber_process_iq();
@@ -151,7 +160,8 @@ static void jabber_process()
 	si.sess.curr = NULL;
 }
 
-static void jabber_roster_cb()
+static void
+jabber_roster_cb()
 {
 	void *query;
 
@@ -188,26 +198,38 @@ static void jabber_roster_cb()
 		}
 	}
 
-	jabber_send("<presence><status>Online</status><priority>9</priority></presence>");
+	jabber_send("<presence>"
+				  "<status>Online</status>"
+				  "<priority>7</priority>"
+				"</presence>");
 }
 
-static void jabber_auth_cb()
+static void
+jabber_auth_cb()
 {
 	char roster[1024];
 
 	dvprintf("authenticated");
 
-	snprintf(roster, sizeof(roster), "<iq id='%d' type='get'><query xmlns='jabber:iq:roster'/></iq>", si.sess.id);
+	snprintf(roster, sizeof (roster),
+			 "<iq id='%d' type='get'><query xmlns='jabber:iq:roster'/></iq>",
+			 si.sess.id);
 	jabber_send_iq(roster, si.sess.id++, jabber_roster_cb);
 }
 
-static void jabber_auth(int type)
+static void
+jabber_auth(int type)
 {
 	char auth[1024];
 	int n;
 
-	n = snprintf(auth, sizeof(auth), "<iq id='%d' type='set'><query xmlns='jabber:iq:auth'><username>%s</username><resource>%s</resource>",
-		     si.sess.id, si.screenname, si.resource ? si.resource : "grim");
+	n = snprintf(auth, sizeof (auth),
+				 "<iq id='%d' type='set'>"
+				   "<query xmlns='jabber:iq:auth'>"
+				     "<username>%s</username>"
+				     "<resource>%s</resource>",
+				 si.sess.id,
+				 si.screenname, si.resource ? si.resource : "grim");
 
 	if (type == 1) {
 		SHA1Context sha1ctxt;
@@ -219,20 +241,22 @@ static void jabber_auth(int type)
 		SHA1Input(&sha1ctxt, si.password, strlen(si.password));
 		SHA1Result(&sha1ctxt, digest);
 
-		n += snprintf(auth + n, sizeof(auth) - n, "<digest>");
+		n += snprintf(auth + n, sizeof (auth) - n, "<digest>");
 		for (i = 0; i < SHA1HashSize; i++)
-			n += snprintf(auth + n, sizeof(auth) - n, "%02x", digest[i]);
-		n += snprintf(auth + n, sizeof(auth) - n, "</digest>");
+			n += snprintf(auth + n, sizeof (auth) - n, "%02x", digest[i]);
+		n += snprintf(auth + n, sizeof (auth) - n, "</digest>");
 	} else if (type == 2) {
-		n += snprintf(auth + n, sizeof(auth) - n, "<password>%s</password>", si.password);
+		n += snprintf(auth + n, sizeof (auth) - n,
+					  "<password>%s</password>", si.password);
 	}
 
-	snprintf(auth + n, sizeof(auth) - n, "</query></iq>");
+	snprintf(auth + n, sizeof (auth) - n, "</query></iq>");
 
 	jabber_send_iq(auth, si.sess.id++, jabber_auth_cb);
 }
 
-static void jabber_start_cb()
+static void
+jabber_start_cb()
 {
 	void *query = xml_get_child(si.sess.curr, "query");
 	if (!query) {
@@ -247,7 +271,8 @@ static void jabber_start_cb()
 		dvprintf("unknown auth query");
 }
 
-static void jabber_start(void *data, const char *el, const char **attr)
+static void
+jabber_start(void *data, const char *el, const char **attr)
 {
 	int i;
 
@@ -261,7 +286,13 @@ static void jabber_start(void *data, const char *el, const char **attr)
 			}
 		}
 
-		snprintf(iq, sizeof(iq), "<iq id='%d' type='get'><query xmlns='jabber:iq:auth'><username>%s</username></query></iq>", si.sess.id, si.screenname);
+		snprintf(iq, sizeof (iq),
+				 "<iq id='%d' type='get'>"
+				   "<query xmlns='jabber:iq:auth'>"
+				     "<username>%s</username>"
+				   "</query>"
+				 "</iq>",
+				 si.sess.id, si.screenname);
 		jabber_send_iq(iq, si.sess.id++, jabber_start_cb);
 		return;
 	}
@@ -275,7 +306,8 @@ static void jabber_start(void *data, const char *el, const char **attr)
 		xml_attrib(si.sess.curr, attr[i], attr[i + 1]);
 }
 
-static void jabber_end(void *data, const char *el)
+static void
+jabber_end(void *data, const char *el)
 {
 	void *parent;
 
@@ -288,32 +320,35 @@ static void jabber_end(void *data, const char *el)
 		si.sess.curr = parent;
 }
 
-static void jabber_chardata(void *data, const char *s, int len)
+static void
+jabber_chardata(void *data, const char *s, int len)
 {
 	xml_data(si.sess.curr, s, len);
 }
 
-static int jabber_callback(void *nb, int event, nbio_fd_t *fdt)
+static int
+jabber_callback(void *nb, int event, nbio_fd_t *fdt)
 {
 	if (event == NBIO_EVENT_READ) {
 		char buf[1024];
 		int len;
 
-		if ((len = recv(fdt->fd, buf, sizeof(buf)-1, 0)) <= 0) {
+		if ((len = recv(fdt->fd, buf, sizeof (buf) - 1, 0)) <= 0) {
 			if (errno != 0)
 				dvprintf("connection error: %s", strerror(errno));
-			return -1;
+			return (-1);
 		}
 		buf[len] = '\0';
 
 		log_xml(buf, 0);
 
 		if (!XML_Parse(si.sess.parser, buf, len, 0)) {
-			dvprintf("parser error: %s", XML_ErrorString(XML_GetErrorCode(si.sess.parser)));
-			return -1;
+			dvprintf("parser error: %s",
+					 XML_ErrorString(XML_GetErrorCode(si.sess.parser)));
+			return (-1);
 		}
 
-		return 0;
+		return (0);
 
 	} else if (event == NBIO_EVENT_WRITE) {
 		unsigned char *buf;
@@ -321,83 +356,96 @@ static int jabber_callback(void *nb, int event, nbio_fd_t *fdt)
 
 		if (!(buf = nbio_remtoptxvector(nb, fdt, &len, &offset))) {
 			dvprintf("EVENT_WRITE, but no finished buffer!");
-			return -1;
+			return (-1);
 		}
 
 		free(buf);
 
-		return 0;
+		return (0);
 
 	} else if ((event == NBIO_EVENT_ERROR) || (event == NBIO_EVENT_EOF)) {
-		dvprintf("connection error! (EVENT_%s)", (event == NBIO_EVENT_ERROR) ? "ERROR" : "EOF");
+		dvprintf("connection error! (EVENT_%s)",
+				 (event == NBIO_EVENT_ERROR) ? "ERROR" : "EOF");
 
 		nbio_closefdt(nb, fdt);
 
-		return -1;
+		return (-1);
 	}
 
 	dvprintf("jabber_callback: unknown event %d", event);
 
-	return -1;
+	return (-1);
 }
 
-static int jabber_connected(void *nb, int event, nbio_fd_t *fdt)
+static int
+jabber_connected(void *nb, int event, nbio_fd_t *fdt)
 {
 	if (event == NBIO_EVENT_CONNECTED) {
 		char stream[1024];
 
 		dvprintf("connected to server");
 
-		if (!(fdt = nbio_addfd(nb, NBIO_FDTYPE_STREAM, fdt->fd, 0, jabber_callback, NULL, 0, 128)))
-			return -1;
+		if (!(fdt = nbio_addfd(nb, NBIO_FDTYPE_STREAM, fdt->fd, 0,
+							   jabber_callback, NULL, 0, 128)))
+			return (-1);
 
 		si.sess.fdt = fdt;
 		nbio_setraw(nb, fdt, 2);
 
-		snprintf(stream, sizeof(stream), "<stream:stream to='%s' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'>", si.authorizer);
+		snprintf(stream, sizeof (stream),
+				 "<stream:stream "
+				   "to='%s' "
+				   "xmlns='jabber:client' "
+				   "xmlns:stream='http://etherx.jabber.org/streams'"
+				 ">", si.authorizer);
 		jabber_send(stream);
 	} else if (event == NBIO_EVENT_CONNECTFAILED) {
 		dvprintf("unable to connect to %s", si.authorizer);
 		nbio_closefdt(nb, fdt);
 	}
 
-	return 0;
+	return (0);
 }
 
-int init_server()
+int
+init_server()
 {
 	struct sockaddr_in sa;
 	struct hostent *hp;
 
 	if (!(si.sess.parser = XML_ParserCreate(NULL)))
-		return -1;
+		return (-1);
 
 	XML_SetElementHandler(si.sess.parser, jabber_start, jabber_end);
 	XML_SetCharacterDataHandler(si.sess.parser, jabber_chardata);
 
 	if (!(hp = gethostbyname(si.authorizer)))
-		return -1;
+		return (-1);
 
-	memset(&sa, 0, sizeof(struct sockaddr_in));
+	memset(&sa, 0, sizeof (struct sockaddr_in));
 	sa.sin_port = htons(si.port);
 	memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
 	sa.sin_family = hp->h_addrtype;
 
-	if (nbio_connect(&gnb, (struct sockaddr *)&sa, sizeof(sa), jabber_connected, NULL))
-		return -1;
+	if (nbio_connect(&gnb, (struct sockaddr *)&sa, sizeof (sa),
+					 jabber_connected, NULL))
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
-void getinfo(char *name)
+void
+getinfo(char *name)
 {
 }
 
-void usersearch(char *email)
+void
+usersearch(char *email)
 {
 }
 
-void send_im(char *to, char *msg)
+void
+send_im(char *to, char *msg)
 {
 	int len = (strlen(msg) * 5) + strlen(to) + 1024;
 	char *fmt = malloc(len);
@@ -432,26 +480,39 @@ void send_im(char *to, char *msg)
 		}
 	}
 	fmt[j++] = 0;
-	snprintf(send, len, "<message to='%s' type='chat'><body>%s</body></message>", to, fmt);
+	snprintf(send, len,
+			 "<message to='%s' type='chat'>"
+			   "<body>%s</body>"
+			 "</message>",
+			 to, fmt);
 	jabber_send(send);
 	free(send);
 	free(fmt);
 }
 
-void keepalive()
+void
+keepalive()
 {
+	jabber_send("\t");
 }
 
-void presence(char *to, int avail)
+void
+presence(char *to, int avail)
 {
 	int len = strlen(to) + 1024;
 	char *send = malloc(len);
 	if (!send)
 		return;
 	if (avail)
-		snprintf(send, len, "<presence to='%s'><status>Available</status></presence>", to);
+		snprintf(send, len,
+				 "<presence to='%s'>"
+				   "<status>Available</status>"
+				 "</presence>",
+				 to);
 	else
 		snprintf(send, len, "<presence to='%s' type='unavailable' />", to);
 	jabber_send(send);
 	free(send);
 }
+
+/* vim:set sw=4 ts=4 ai noet cindent tw=80: */
