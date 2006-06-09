@@ -601,7 +601,7 @@ void got_im(char *from, char *msg, int away)
 				away ? "<AUTO> " : "", from, h);
 
 	t->text = append_text(t->text, x);
-	log_msg(from, si.screenname, h);
+	log_msg(from, si.displayname, h);
 	free(x);
 
 	if (list_nth(tabs, cur_tab) != t)
@@ -609,7 +609,7 @@ void got_im(char *from, char *msg, int away)
 	draw_tabs();
 	refresh();
 
-	if (sound) play();
+	if (sound) beep();
 }
 
 void dvprintf(char *f, ...)
@@ -696,17 +696,17 @@ static void send_message()
 	stm = localtime(&tm);
 
 	h = strip_html(entry_text);
-	x = malloc(strlen(si.screenname) + strlen(h) + 100);
+	x = malloc(strlen(si.displayname) + strlen(h) + 100);
 
 	if (!strncasecmp(h, "/me ", 4))
 		sprintf(x, "%02d:%02d:%02d *** %s %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
-				si.screenname, h + 4);
+				si.displayname, h + 4);
 	else
 		sprintf(x, "%02d:%02d:%02d %s: %s", stm->tm_hour, stm->tm_min, stm->tm_sec,
-				si.screenname, h);
+				si.displayname, h);
 
 	t->text = append_text(t->text, x);
-	log_msg(si.screenname, t->title, h);
+	log_msg(si.displayname, t->title, h);
 
 	/*
 	 * jabber's send_im triggers a call to dvprintf which calls strip_html

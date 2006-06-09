@@ -1,11 +1,6 @@
 #ifndef main_h
 #define main_h
 
-#ifdef JABBER
-#include <expat.h>
-#else
-#include <aim.h>
-#endif
 #define HAVE_SYS_SOCKET_H
 #include <libnbio.h>
 #include <stdarg.h>
@@ -16,28 +11,18 @@
 extern nbio_t gnb;
 extern struct session_info si;
 
-#ifdef JABBER
-typedef struct _jabber_session {
-	nbio_fd_t *fdt;
-	XML_Parser parser;
-	char *streamid;
-	int id;
-	void *curr;
-	list *iqs;
-} jabber_session_t;
-#endif
-
 struct session_info {
-#ifdef JABBER
-	jabber_session_t sess;
-#else
-	aim_session_t sess;
-#endif
-	char *authorizer;
-	int port;
+	char *displayname;
 
 	char *screenname;
 	char *password;
+	char *authorizer;
+	int port;
+
+	char *jid;
+	char *jserver;
+	int jport;
+	char *key;
 	char *resource;
 
 	int killme;
@@ -62,11 +47,5 @@ extern void usersearch(char *);
 extern void send_im(char *, char *);
 extern void presence(char *, int);
 extern void keepalive();
-
-#ifdef SOUND
-extern void play();
-#else
-#define play() beep()
-#endif
 
 #endif

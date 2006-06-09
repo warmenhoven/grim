@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <expat.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,6 +13,17 @@ typedef struct _jiq {
 	int id;
 	void (*cb)();
 } jiq;
+
+typedef struct _jabber_session {
+	nbio_fd_t *fdt;
+	XML_Parser parser;
+	char *streamid;
+	int id;
+	void *curr;
+	list *iqs;
+} jabber_session_t;
+
+static jabber_session_t sess;
 
 static void
 log_xml(char *xml, int send)
@@ -37,7 +49,7 @@ jabber_send(char *stream)
 	if (*stream != '\t')
 		log_xml(stream, 1);
 
-	if (nbio_addtxvector(&gnb, si.sess.fdt,
+	if (nbio_addtxvector(&gnb, sess.fdt,
 						 (uint8_t *)buf, strlen(buf)) == -1) {
 		dvprintf("nbio_addtxvector: %s", strerror(errno));
 		free(buf);
@@ -54,7 +66,7 @@ jabber_send_iq(char *stream, int id, void (*cb)())
 	j->id = id;
 	j->cb = cb;
 
-	si.sess.iqs = list_append(si.sess.iqs, j);
+	sess.iqs = list_append(sess.iqs, j);
 
 	jabber_send(stream);
 }
@@ -62,13 +74,13 @@ jabber_send_iq(char *stream, int id, void (*cb)())
 static void
 jabber_process_iq()
 {
-	const char *type = xml_get_attrib(si.sess.curr, "type");
+	const char *type = xml_get_attrib(sess.curr, "type");
 	if (!type)
 		return;
 	if (!strcasecmp(type, "result")) {
-		const char *id = xml_get_attrib(si.sess.curr, "id");
+		const char *id = xml_get_attrib(sess.curr, "id");
 		int q;
-		list *l = si.sess.iqs;
+		list *l = sess.iqs;
 		if (!id) {
 			dvprintf("result with no id");
 			return;
@@ -94,9 +106,9 @@ jabber_process_iq()
 static void
 jabber_process_presence()
 {
-	char *from = xml_get_attrib(si.sess.curr, "from");
-	char *type = xml_get_attrib(si.sess.curr, "type");
-	void *status = xml_get_child(si.sess.curr, "status");
+	char *from = xml_get_attrib(sess.curr, "from");
+	char *type = xml_get_attrib(sess.curr, "type");
+	void *status = xml_get_child(sess.curr, "status");
 	char *slash;
 	if (type && !strcasecmp(type, "error")) {
 		dvprintf("error in presence: from %s", from ? from : "not present");
@@ -117,9 +129,9 @@ jabber_process_presence()
 static void
 jabber_process_message()
 {
-	char *from = xml_get_attrib(si.sess.curr, "from");
-	char *type = xml_get_attrib(si.sess.curr, "type");
-	char *body = xml_get_child(si.sess.curr, "body");
+	char *from = xml_get_attrib(sess.curr, "from");
+	char *type = xml_get_attrib(sess.curr, "type");
+	char *body = xml_get_child(sess.curr, "body");
 	char *msg = NULL;
 	char *slash;
 	if (type && !strcasecmp(type, "error")) {
@@ -135,7 +147,7 @@ jabber_process_message()
 	if ((slash = strchr(from, '/')) != NULL)
 		*slash = 0;
 	if (type && !strcasecmp(type, "headline")) {
-		char *subject = xml_get_child(si.sess.curr, "subject");
+		char *subject = xml_get_child(sess.curr, "subject");
 		dvprintf("headline from %s:", from);
 		if (subject) dvprintf("subject: %s", xml_get_data(subject));
 		dvprintf("%s", msg);
@@ -147,17 +159,17 @@ jabber_process_message()
 static void
 jabber_process()
 {
-	if (!strcasecmp(xml_name(si.sess.curr), "iq")) {
+	if (!strcasecmp(xml_name(sess.curr), "iq")) {
 		jabber_process_iq();
-	} else if (!strcasecmp(xml_name(si.sess.curr), "presence")) {
+	} else if (!strcasecmp(xml_name(sess.curr), "presence")) {
 		jabber_process_presence();
-	} else if (!strcasecmp(xml_name(si.sess.curr), "message")) {
+	} else if (!strcasecmp(xml_name(sess.curr), "message")) {
 		jabber_process_message();
 	} else
-		dvprintf("unhandled xml parent %s", xml_name(si.sess.curr));
+		dvprintf("unhandled xml parent %s", xml_name(sess.curr));
 
-	xml_free(si.sess.curr);
-	si.sess.curr = NULL;
+	xml_free(sess.curr);
+	sess.curr = NULL;
 }
 
 static void
@@ -167,7 +179,7 @@ jabber_roster_cb()
 
 	dvprintf("online");
 
-	query = xml_get_child(si.sess.curr, "query");
+	query = xml_get_child(sess.curr, "query");
 	add_group("Buddies", 1);
 	if (query) {
 		list *children = xml_get_children(query);
@@ -213,8 +225,8 @@ jabber_auth_cb()
 
 	snprintf(roster, sizeof (roster),
 			 "<iq id='%d' type='get'><query xmlns='jabber:iq:roster'/></iq>",
-			 si.sess.id);
-	jabber_send_iq(roster, si.sess.id++, jabber_roster_cb);
+			 sess.id);
+	jabber_send_iq(roster, sess.id++, jabber_roster_cb);
 }
 
 static void
@@ -228,8 +240,8 @@ jabber_auth(int type)
 				   "<query xmlns='jabber:iq:auth'>"
 				     "<username>%s</username>"
 				     "<resource>%s</resource>",
-				 si.sess.id,
-				 si.screenname, si.resource ? si.resource : "grim");
+				 sess.id,
+				 si.jid, si.resource ? si.resource : "grim");
 
 	if (type == 1) {
 		SHA1Context sha1ctxt;
@@ -237,8 +249,8 @@ jabber_auth(int type)
 		int i;
 
 		SHA1Reset(&sha1ctxt);
-		SHA1Input(&sha1ctxt, si.sess.streamid, strlen(si.sess.streamid));
-		SHA1Input(&sha1ctxt, si.password, strlen(si.password));
+		SHA1Input(&sha1ctxt, sess.streamid, strlen(sess.streamid));
+		SHA1Input(&sha1ctxt, si.key, strlen(si.key));
 		SHA1Result(&sha1ctxt, digest);
 
 		n += snprintf(auth + n, sizeof (auth) - n, "<digest>");
@@ -247,18 +259,18 @@ jabber_auth(int type)
 		n += snprintf(auth + n, sizeof (auth) - n, "</digest>");
 	} else if (type == 2) {
 		n += snprintf(auth + n, sizeof (auth) - n,
-					  "<password>%s</password>", si.password);
+					  "<password>%s</password>", si.key);
 	}
 
 	snprintf(auth + n, sizeof (auth) - n, "</query></iq>");
 
-	jabber_send_iq(auth, si.sess.id++, jabber_auth_cb);
+	jabber_send_iq(auth, sess.id++, jabber_auth_cb);
 }
 
 static void
 jabber_start_cb()
 {
-	void *query = xml_get_child(si.sess.curr, "query");
+	void *query = xml_get_child(sess.curr, "query");
 	if (!query) {
 		dvprintf("auth with no query");
 		return;
@@ -279,10 +291,10 @@ jabber_start(void *data, const char *el, const char **attr)
 	if (!strcasecmp(el, "stream:stream")) {
 		char iq[1024];
 
-		si.sess.streamid = NULL;
+		sess.streamid = NULL;
 		for (i = 0; attr[i]; i += 2) {
 			if (!strcasecmp(attr[i], "id")) {
-				si.sess.streamid = strdup(attr[i + 1]);
+				sess.streamid = strdup(attr[i + 1]);
 			}
 		}
 
@@ -292,18 +304,18 @@ jabber_start(void *data, const char *el, const char **attr)
 				     "<username>%s</username>"
 				   "</query>"
 				 "</iq>",
-				 si.sess.id, si.screenname);
-		jabber_send_iq(iq, si.sess.id++, jabber_start_cb);
+				 sess.id, si.jid);
+		jabber_send_iq(iq, sess.id++, jabber_start_cb);
 		return;
 	}
 
-	if (si.sess.curr)
-		si.sess.curr = xml_child(si.sess.curr, el);
+	if (sess.curr)
+		sess.curr = xml_child(sess.curr, el);
 	else
-		si.sess.curr = xml_new(el);
+		sess.curr = xml_new(el);
 
 	for (i = 0; attr[i]; i += 2)
-		xml_attrib(si.sess.curr, attr[i], attr[i + 1]);
+		xml_attrib(sess.curr, attr[i], attr[i + 1]);
 }
 
 static void
@@ -311,19 +323,19 @@ jabber_end(void *data, const char *el)
 {
 	void *parent;
 
-	if (!si.sess.curr)
+	if (!sess.curr)
 		return;
 
-	if (!(parent = xml_parent(si.sess.curr)))
+	if (!(parent = xml_parent(sess.curr)))
 		jabber_process();
-	else if (!strcasecmp(xml_name(si.sess.curr), el))
-		si.sess.curr = parent;
+	else if (!strcasecmp(xml_name(sess.curr), el))
+		sess.curr = parent;
 }
 
 static void
 jabber_chardata(void *data, const char *s, int len)
 {
-	xml_data(si.sess.curr, s, len);
+	xml_data(sess.curr, s, len);
 }
 
 static int
@@ -342,9 +354,9 @@ jabber_callback(void *nb, int event, nbio_fd_t *fdt)
 
 		log_xml(buf, 0);
 
-		if (!XML_Parse(si.sess.parser, buf, len, 0)) {
+		if (!XML_Parse(sess.parser, buf, len, 0)) {
 			dvprintf("parser error: %s",
-					 XML_ErrorString(XML_GetErrorCode(si.sess.parser)));
+					 XML_ErrorString(XML_GetErrorCode(sess.parser)));
 			return (-1);
 		}
 
@@ -389,7 +401,7 @@ jabber_connected(void *nb, int event, nbio_fd_t *fdt)
 							   jabber_callback, NULL, 0, 128)))
 			return (-1);
 
-		si.sess.fdt = fdt;
+		sess.fdt = fdt;
 		nbio_setraw(nb, fdt, 2);
 
 		snprintf(stream, sizeof (stream),
@@ -397,10 +409,10 @@ jabber_connected(void *nb, int event, nbio_fd_t *fdt)
 				   "to='%s' "
 				   "xmlns='jabber:client' "
 				   "xmlns:stream='http://etherx.jabber.org/streams'"
-				 ">", si.authorizer);
+				 ">", si.jserver);
 		jabber_send(stream);
 	} else if (event == NBIO_EVENT_CONNECTFAILED) {
-		dvprintf("unable to connect to %s", si.authorizer);
+		dvprintf("unable to connect to %s", si.jserver);
 		nbio_closefdt(nb, fdt);
 	}
 
@@ -413,17 +425,19 @@ init_server()
 	struct sockaddr_in sa;
 	struct hostent *hp;
 
-	if (!(si.sess.parser = XML_ParserCreate(NULL)))
+	si.displayname = si.jid;
+
+	if (!(sess.parser = XML_ParserCreate(NULL)))
 		return (-1);
 
-	XML_SetElementHandler(si.sess.parser, jabber_start, jabber_end);
-	XML_SetCharacterDataHandler(si.sess.parser, jabber_chardata);
+	XML_SetElementHandler(sess.parser, jabber_start, jabber_end);
+	XML_SetCharacterDataHandler(sess.parser, jabber_chardata);
 
-	if (!(hp = gethostbyname(si.authorizer)))
+	if (!(hp = gethostbyname(si.jserver)))
 		return (-1);
 
 	memset(&sa, 0, sizeof (struct sockaddr_in));
-	sa.sin_port = htons(si.port);
+	sa.sin_port = htons(si.jport);
 	memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
 	sa.sin_family = hp->h_addrtype;
 

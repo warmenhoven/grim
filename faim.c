@@ -2,10 +2,13 @@
 #define FAIM_INTERNAL
 #define FAIM_INTERNAL_INSANE
 
+#include <aim.h>
 #include "main.h"
 
 #define FLAP_LEN 6
 #define MAXSNAC 8192
+
+static aim_session_t sess;
 
 static int aim_nbio_addflapvec(nbio_fd_t *fdt, unsigned char *oldbuf)
 {
@@ -627,18 +630,20 @@ int init_server()
 	aim_conn_t *authconn;
 	char authstr[16384];
 
-	aim_session_init(&si.sess, 0, 0);
-	aim_setdebuggingcb(&si.sess, debugcb); /* still needed even if debuglevel = 0 ! */
+	si.displayname = si.screenname;
 
-	aim_tx_setenqueue(&si.sess, AIM_TX_USER, &aim_tx_enqueue__nbio);
+	aim_session_init(&sess, 0, 0);
+	aim_setdebuggingcb(&sess, debugcb); /* still needed even if debuglevel = 0 ! */
+
+	aim_tx_setenqueue(&sess, AIM_TX_USER, &aim_tx_enqueue__nbio);
 
 	sprintf(authstr, "%s:%d", si.authorizer, si.port);
 
 	dvprintf("aim: connecting to %s", authstr);
 
-	if (!(authconn = aim_newconn(&si.sess, AIM_CONN_TYPE_AUTH, authstr))) {
+	if (!(authconn = aim_newconn(&sess, AIM_CONN_TYPE_AUTH, authstr))) {
 		dvprintf("faim: internal connection error");
-		aim_session_kill(&si.sess);
+		aim_session_kill(&sess);
 		return -1;
 	} else if (authconn->fd == -1) {
 		if (authconn->status & AIM_CONN_STATUS_RESOLVERR) {
@@ -647,47 +652,47 @@ int init_server()
 			dvprintf("could not connect to authorizer");
 		}
 
-		aim_conn_kill(&si.sess, &authconn);
-		aim_session_kill(&si.sess);
+		aim_conn_kill(&sess, &authconn);
+		aim_session_kill(&sess);
 
 		return -1;
 	}
 
 	if (!addaimconn(authconn)) {
-		aim_conn_kill(&si.sess, &authconn);
+		aim_conn_kill(&sess, &authconn);
 		si.killme = 1;
 		return 1;
 	}
 
-	aim_conn_addhandler(&si.sess, authconn, 0x0017, 0x0007, cb_parse_login, 0);
-	aim_conn_addhandler(&si.sess, authconn, 0x0017, 0x0003, cb_parse_authresp, 0);
+	aim_conn_addhandler(&sess, authconn, 0x0017, 0x0007, cb_parse_login, 0);
+	aim_conn_addhandler(&sess, authconn, 0x0017, 0x0003, cb_parse_authresp, 0);
 
-	aim_request_login(&si.sess, authconn, si.screenname);
+	aim_request_login(&sess, authconn, si.screenname);
 
 	return 0;
 }
 
 void getinfo(char *name)
 {
-	aim_getinfo(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), name, AIM_GETINFO_GENERALINFO);
+	aim_getinfo(&sess, aim_getconn_type(&sess, AIM_CONN_TYPE_BOS), name, AIM_GETINFO_GENERALINFO);
 }
 
 void usersearch(char *email)
 {
-	aim_usersearch_address(&si.sess, aim_getconn_type(&si.sess, AIM_CONN_TYPE_BOS), email);
+	aim_usersearch_address(&sess, aim_getconn_type(&sess, AIM_CONN_TYPE_BOS), email);
 }
 
 void send_im(char *to, char *msg)
 {
-	aim_send_im(&si.sess, to, 0, msg);
+	aim_send_im(&sess, to, 0, msg);
 }
 
 void keepalive()
 {
 	aim_conn_t *cur;
 
-	for (cur = si.sess.connlist; cur; cur = cur->next)
-		aim_flap_nop(&si.sess, cur);
+	for (cur = sess.connlist; cur; cur = cur->next)
+		aim_flap_nop(&sess, cur);
 }
 
 void presence(char *to, int avail)
