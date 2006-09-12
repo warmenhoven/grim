@@ -185,17 +185,19 @@ void buddy_state(char *name, int state)
 {
 	struct buddy *b = find_buddy(name);
 	if (b) {
-		b->state = state;
 		if (strcmp(b->name, nospaces(name)))
 			strcpy(b->name, nospaces(name));
-		if (b->stalk) {
-			time_t tm = time(NULL);
-			struct tm *stm = localtime(&tm);
+		if (b->state != state) {
+			if (b->stalk) {
+				time_t tm = time(NULL);
+				struct tm *stm = localtime(&tm);
 
-			dvprintf("%s %s at %d/%d %d:%d:%d", b->name,
-					 state ? "online" : "offline",
-					 stm->tm_mon, stm->tm_mday,
-					 stm->tm_hour, stm->tm_min, stm->tm_sec);
+				dvprintf("%s %s at %d/%d %d:%d:%d", b->name,
+						 state ? "online" : "offline",
+						 stm->tm_mon, stm->tm_mday,
+						 stm->tm_hour, stm->tm_min, stm->tm_sec);
+			}
+			b->state = state;
 		}
 		draw_blist();
 		refresh();
