@@ -28,16 +28,18 @@ static jabber_session_t sess;
 static void
 log_xml(char *xml, int send)
 {
-	char path[8192];
-	FILE *f;
+	static FILE *f = NULL;
 
-	sprintf(path, "%s/.%s/xml", getenv("HOME"), PROG);
-	if (!(f = fopen(path, "a"))) {
-		fprintf(stderr, "Can't write %s\n", path);
-		return;
+	if (!f) {
+		char path[8192];
+		sprintf(path, "%s/.%s/xml", getenv("HOME"), PROG);
+		if (!(f = fopen(path, "w+"))) {
+			fprintf(stderr, "Can't write %s\n", path);
+			return;
+		}
 	}
 	fprintf(f, "%s %d: %s\n", send ? "send" : "recv", strlen(xml), xml);
-	fclose(f);
+	fflush(f);
 }
 
 
@@ -99,7 +101,44 @@ jabber_process_iq()
 	} else if (!strcasecmp(type, "error")) {
 		dvprintf("error");
 	} else {
-		dvprintf("unhandled iq");
+		dvprintf("unhandled iq %s", type);
+	}
+}
+
+static int
+from_me(char *jid)
+{
+	char *server;
+	char *x;
+
+	if (!jid)
+		return (0);
+
+	x = strchr(jid, '@');
+	if (!x) {
+		return (!strcmp(jid, si.jid));
+	} else {
+		*x = '\0';
+		if (strcmp(jid, si.jid)) {
+			*x = '@';
+			return (0);
+		}
+		*x = '@';
+	}
+
+	x++;
+	server = x;
+	x = strchr(server, '/');
+	if (!x) {
+		return (!strcmp(server, si.jserver));
+	} else {
+		*x = '\0';
+		if (strcmp(server, si.jserver)) {
+			*x = '/';
+			return (0);
+		}
+		*x = '/';
+		return 1;
 	}
 }
 
@@ -110,20 +149,32 @@ jabber_process_presence()
 	char *type = xml_get_attrib(sess.curr, "type");
 	void *status = xml_get_child(sess.curr, "status");
 	char *slash;
+
 	if (type && !strcasecmp(type, "error")) {
 		dvprintf("error in presence: from %s", from ? from : "not present");
 		return;
 	}
-	if (!from || !(status || (type && !strcasecmp(type, "unavailable")))) {
-		dvprintf("presence with no %s", from ? "status" : "from");
+
+	if (!from) {
+		dvprintf("presence with no from");
 		return;
 	}
+	if (from_me(from)) {
+		return;
+	}
+
 	if ((slash = strchr(from, '/')) != NULL)
 		*slash = 0;
-	if (type && !strcasecmp(type, "unavailable"))
+
+	if (type && !strcasecmp(type, "unavailable")) {
 		buddy_state(from, 0);
-	else
+	} else if (status) {
 		buddy_state(from, 1);
+	} else if (slash) {
+		buddy_state(from, 1);
+	} else {
+		dvprintf("presence with no discernable status");
+	}
 }
 
 static void
