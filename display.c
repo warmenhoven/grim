@@ -644,6 +644,8 @@ static void process_command()
 		refresh();
 	} else if (!strncasecmp(x, "info ", 5) && x[5]) {
 		getinfo(x + 5);
+	} else if (!strncasecmp(x, "keepalive ", 10) && x[10]) {
+		strcpy(keepalive_user, x + 10);
 	} else if (!strncasecmp(x, "stalk ", 6) && x[6]) {
 		list *l = pals;
 		while (l) {

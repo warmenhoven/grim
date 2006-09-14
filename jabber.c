@@ -173,7 +173,7 @@ jabber_process_presence()
 	} else if (slash) {
 		buddy_state(from, 1);
 	} else {
-		dvprintf("presence with no discernable status");
+		dvprintf("presence with no discernable status from %s", from);
 	}
 }
 
@@ -191,8 +191,12 @@ jabber_process_message()
 	}
 	if (body)
 		msg = xml_get_data(body);
-	if (!from || !msg) {
-		dvprintf("message with no %s", from ? "msg" : "from");
+	if (!from) {
+		dvprintf("message with no from");
+		return;
+	}
+	if (!msg) {
+		dvprintf("message with no msg from %s", from);
 		return;
 	}
 	if ((slash = strchr(from, '/')) != NULL)
@@ -202,7 +206,7 @@ jabber_process_message()
 		dvprintf("headline from %s:", from);
 		if (subject) dvprintf("subject: %s", xml_get_data(subject));
 		dvprintf("%s", msg);
-	} else {
+	} else if (strcasecmp(from, keepalive_user) || strcmp(msg, KEEPALIVE)) {
 		got_im(from, msg, 0);
 	}
 }
@@ -559,6 +563,9 @@ void
 keepalive()
 {
 	jabber_send("\t");
+	if (keepalive_user[0]) {
+		send_im(keepalive_user, KEEPALIVE);
+	}
 }
 
 void

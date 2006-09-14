@@ -8,8 +8,11 @@
 
 #define PROG "grim"
 
+#define KEEPALIVE "keep alive!"
+
 extern nbio_t gnb;
 extern struct session_info si;
+extern char keepalive_user[256];
 
 struct session_info {
 	char *displayname;
