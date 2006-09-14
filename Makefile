@@ -1,7 +1,7 @@
 TOPDIR = /usr
 CC = gcc
 LDLIBS = -lcurses $(TOPDIR)/lib/libnbio.a
-CFLAGS += -g3 -O3 -I$(TOPDIR)/include/libnbio -Wall
+CFLAGS += -g3 -O3 -I$(TOPDIR)/include/libnbio -I$(TOPDIR)/include/libfaim -Wall
 
 OBJS = config.o display.o list.o main.o
 
@@ -9,24 +9,27 @@ ifneq "$(PERF)" ""
 CFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
-ifeq "$(JABBER)" ""
-LDLIBS += $(TOPDIR)/lib/libfaim.a
-CFLAGS += -I$(TOPDIR)/include/libfaim
-OBJS += faim.o
-else
-LDLIBS += -lexpat
-OBJS += jabber.o sha1.o xml.o
-endif
+AIMLDLIBS += $(TOPDIR)/lib/libfaim.a
+AIMOBJS += faim.o
+
+JABBERLDLIBS += -lexpat
+JABBEROBJS += jabber.o sha1.o xml.o
 
 TARGET = grim
 
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) $(LDLIBS) -o $@
+all:: $(TARGET).aim $(TARGET).jabber
 
-$(OBJS): main.h list.h xml.h
+$(TARGET).aim: $(OBJS) $(AIMOBJS)
+	$(CC) $^ $(LDLIBS) $(AIMLDLIBS) -o $@
+
+$(TARGET).jabber: $(OBJS) $(JABBEROBJS)
+	$(CC) $^ $(LDLIBS) $(JABBERLDLIBS) -o $@
+
+$(OBJS): main.h list.h
+$(JABBEROBJS): xml.h
 
 clean:
-	@rm -rf $(TARGET) *.o core $(TARGET).tgz
+	@rm -rf $(TARGET).aim $(TARGET).jabber *.o core $(TARGET).tgz
 
 dist:
 	rm -f $(TARGET).tgz
