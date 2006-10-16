@@ -469,6 +469,7 @@ jabber_connected(void *nb, int event, nbio_fd_t *fdt)
 	} else if (event == NBIO_EVENT_CONNECTFAILED) {
 		dvprintf("unable to connect to %s", si.jserver);
 		nbio_closefdt(nb, fdt);
+		return (-1);
 	}
 
 	return (0);

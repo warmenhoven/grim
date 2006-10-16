@@ -314,12 +314,14 @@ static void draw_tabs()
 			pos++;
 		}
 		if (tab->unseen) {
+			attron(A_BOLD);
 			mvaddch(0, pos++, '+');
 			pos++;
 		}
 		mvaddstr(0, pos, tab->title);
 		pos += strlen(tab->title);
 		pos++;
+		attroff(A_BOLD);
 		mvaddch(0, pos, ACS_VLINE);
 		mvaddch(1, pos++, ACS_BTEE);
 		pos++;
