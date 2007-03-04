@@ -684,6 +684,32 @@ static void process_command()
 	}
 }
 
+static char *text_enc(char *raw)
+{
+	char *ret, *cur;
+
+	cur = ret = malloc(strlen(raw) * 5 + 1);
+	if (!ret)
+		return (NULL);
+
+	while (*raw) {
+		if (*raw == '&') {
+			*cur++ = '&';
+			*cur++ = 'a';
+			*cur++ = 'm';
+			*cur++ = 'p';
+			*cur++ = ';';
+		} else {
+			*cur++ = *raw;
+		}
+		raw++;
+	}
+
+	*cur = 0;
+
+	return (ret);
+}
+
 static void send_message()
 {
 	struct tab *t;
@@ -691,7 +717,7 @@ static void send_message()
 	time_t tm;
 	struct tm *stm;
 
-	char *h, *x;
+	char *h, *x, *g;
 
 	if (!*entry_text)
 		return;
@@ -718,7 +744,9 @@ static void send_message()
 	 * jabber's send_im triggers a call to dvprintf which calls strip_html
 	 * so it has to go after we use the string returned by strip_html
 	 */
-	send_im(t->title, entry_text);
+	g = text_enc(entry_text);
+	send_im(t->title, g);
+	free(g);
 
 	draw_tabs();
 	refresh();
