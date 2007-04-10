@@ -32,7 +32,7 @@ log_xml(char *xml, int send)
 
 	if (!f) {
 		char path[8192];
-		sprintf(path, "%s/.%s/xml", getenv("HOME"), PROG);
+		sprintf(path, "%s/xml", mydir());
 		if (!(f = fopen(path, "w+"))) {
 			fprintf(stderr, "Can't write %s\n", path);
 			return;

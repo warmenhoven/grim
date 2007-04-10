@@ -1,11 +1,50 @@
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 #include "main.h"
 
 nbio_t gnb;
 struct session_info si;
 char keepalive_user[256];
+
+char *
+mydir()
+{
+	struct stat sb;
+	static int init = 0;
+	static char path[1024];
+	char env[1024];
+	int i;
+
+	if (init)
+		return path;
+
+	sprintf(env, "%sDIR", PROG);
+	for (i = 0; i < strlen(PROG); i++)
+		env[i] = toupper(env[i]);
+
+	if (getenv(env)) {
+		sprintf(path, "%s", getenv(env));
+	} else {
+		sprintf(path, "%s/.%s", getenv("HOME"), PROG);
+	}
+
+	/* make sure the directory exists and is a directory */
+	if (stat(path, &sb))
+		mkdir(path, 0700);
+	else if (!S_ISDIR(sb.st_mode)) {
+		unlink(path);
+		mkdir(path, 0700);
+	}
+
+	init = 1;
+
+	return path;
+}
 
 int
 main(int argc, char **argv)

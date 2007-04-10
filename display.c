@@ -578,7 +578,7 @@ static void log_msg(char *from, char *to, char *msg)
 	char path[8192];
 	FILE *f;
 
-	sprintf(path, "%s/.%s/log", getenv("HOME"), PROG);
+	sprintf(path, "%s/log", mydir());
 	if (!(f = fopen(path, "a"))) {
 		fprintf(stderr, "Can't write %s\n", path);
 		return;

@@ -35,17 +35,8 @@ int read_config()
 	struct stat sb;
 	char path[1024];
 
-	/* make sure the directory exists and is a directory */
-	sprintf(path, "%s/.%s", getenv("HOME"), PROG);
-	if (stat(path, &sb))
-		mkdir(path, 0700);
-	else if (!S_ISDIR(sb.st_mode)) {
-		unlink(path);
-		mkdir(path, 0700);
-	}
-
 	/* make sure the conf file exists and is a file */
-	sprintf(path, "%s/.%s/config", getenv("HOME"), PROG);
+	sprintf(path, "%s/config", mydir());
 	if (stat(path, &sb))
 		return defaults();
 	else if (!S_ISREG(sb.st_mode)) {
