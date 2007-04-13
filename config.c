@@ -10,7 +10,7 @@ static int defaults()
 	char path[8192];
 	FILE *f;
 
-	sprintf(path, "%s/.%s/config", getenv("HOME"), PROG);
+	sprintf(path, "%s/config", mydir());
 	if (!(f = fopen(path, "w"))) {
 		fprintf(stderr, "Can't write %s\n", path);
 		return 1;
