@@ -100,8 +100,6 @@ jabber_process_iq()
 			dvprintf("result with no callback");
 	} else if (!strcasecmp(type, "error")) {
 		dvprintf("error");
-	} else {
-		dvprintf("unhandled iq %s", type);
 	}
 }
 
