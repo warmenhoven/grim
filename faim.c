@@ -682,9 +682,37 @@ void usersearch(char *email)
 	aim_usersearch_address(&sess, aim_getconn_type(&sess, AIM_CONN_TYPE_BOS), email);
 }
 
+static char *text_enc(char *raw)
+{
+	char *ret, *cur;
+
+	cur = ret = malloc(strlen(raw) * 5 + 1);
+	if (!ret)
+		return (NULL);
+
+	while (*raw) {
+		if (*raw == '&') {
+			*cur++ = '&';
+			*cur++ = 'a';
+			*cur++ = 'm';
+			*cur++ = 'p';
+			*cur++ = ';';
+		} else {
+			*cur++ = *raw;
+		}
+		raw++;
+	}
+
+	*cur = 0;
+
+	return (ret);
+}
+
 void send_im(char *to, char *msg)
 {
+	char *g = text_enc(msg);
 	aim_send_im(&sess, to, 0, msg);
+	free(g);
 }
 
 void keepalive()
