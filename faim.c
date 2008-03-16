@@ -726,3 +726,12 @@ void keepalive()
 void presence(char *to, int avail)
 {
 }
+
+void away(char *msg)
+{
+	if (msg == NULL) {
+		aim_bos_setprofile(&sess, aim_getconn_type(&sess, AIM_CONN_TYPE_BOS), NULL, "", 0);
+	} else {
+		aim_bos_setprofile(&sess, aim_getconn_type(&sess, AIM_CONN_TYPE_BOS), NULL, msg, 0);
+	}
+}

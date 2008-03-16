@@ -25,6 +25,8 @@ typedef struct _jabber_session {
 
 static jabber_session_t sess;
 
+static void jabber_roster_cb(void);
+
 static void
 log_xml(char *xml, int send)
 {
@@ -98,6 +100,8 @@ jabber_process_iq()
 		}
 		if (!l)
 			dvprintf("result with no callback");
+	} else if (!strcasecmp(type, "set")) {
+		jabber_roster_cb();
 	} else if (!strcasecmp(type, "error")) {
 		dvprintf("error");
 	}
@@ -171,7 +175,7 @@ jabber_process_presence()
 	} else if (slash) {
 		buddy_state(from, 1);
 	} else {
-		dvprintf("presence with no discernable status from %s", from);
+		/* dvprintf("presence with no discernable status from %s", from); */
 	}
 }
 
@@ -246,15 +250,13 @@ jabber_roster_cb()
 				dvprintf("no subscription information");
 				continue;
 			}
-			/*
-			if (strcasecmp(sub, "both") && strcasecmp(sub, "to")) {
-				dvprintf("subscription not to");
-				continue;
-			}
-			*/
 			jid = xml_get_attrib(item, "jid");
 			if (!jid) {
 				dvprintf("no jid?");
+				continue;
+			}
+			if (!strcasecmp(sub, "none")) {
+				dvprintf("no subscription to %s", jid);
 				continue;
 			}
 			if ((slash = strchr(jid, '/')) != NULL)
@@ -265,7 +267,7 @@ jabber_roster_cb()
 
 	jabber_send("<presence>"
 				  "<status>Online</status>"
-				  "<priority>7</priority>"
+				  "<priority>1</priority>"
 				"</presence>");
 }
 
@@ -584,6 +586,10 @@ presence(char *to, int avail)
 		snprintf(send, len, "<presence to='%s' type='unavailable' />", to);
 	jabber_send(send);
 	free(send);
+}
+
+void away(char *msg)
+{
 }
 
 /* vim:set sw=4 ts=4 ai noet cindent tw=80: */

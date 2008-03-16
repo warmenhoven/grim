@@ -28,7 +28,9 @@ struct tab {
 static list *tabs = NULL;
 static unsigned int cur_tab = 0;
 
-static int sound = 0;
+static int isaway = 0;
+static char *awaymsg;
+static int sound = 1;
 static int newlines = 1;
 static int print_anyway = 0;
 static int sp[2];
@@ -158,7 +160,7 @@ void add_buddy(char *name, short gid)
 	if ((int)strlen(b->name) >= max_blwid)
 		max_blwid = strlen(b->name) + 1;
 	b->state = 0;
-	b->stalk = 0;
+	b->stalk = 1;
 	if (notfound) {
 		l = notfound;
 		while (l) {
@@ -367,7 +369,20 @@ static void redraw_screen()
 	mvvline(0, BLWID, ' ' /* ACS_VLINE */, LINES);
 
 	/* now the horizontal one separating the view from the entry */
-	mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, COLS - BLWID - 1);
+	if (isaway) {
+		int i = COLS - BLWID - 1;
+		int len = 0;
+		char *m = malloc(i + 1);
+		m[len] = 0;
+		while (len < i) {
+			strncat(m, "away ", i - len);
+			len += 5;
+		}
+		mvaddstr(LINES - ENHEI, BLWID + 1, m);
+		free(m);
+	} else {
+		mvhline(LINES - ENHEI, BLWID + 1, ACS_HLINE, COLS - BLWID - 1);
+	}
 	mvaddch(LINES - ENHEI, BLWID, ACS_LTEE);
 
 	draw_blist();
@@ -679,6 +694,12 @@ static void process_command()
 		presence(x + 8, 0);
 	} else if (!strcasecmp(x, "debug")) {
 		print_anyway = !print_anyway;
+	} else if (!strncasecmp(x, "away ", 5) && x[5]) {
+		free(awaymsg);
+		awaymsg = strdup(&x[5]);
+		if (isaway) {
+			away(awaymsg);
+		}
 	} else if (!strcasecmp(x, "help")) {
 		dvprintf("No help for you! Read the source! NEXT!");
 	}
@@ -757,6 +778,18 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		end_window();
 		exit(0);
 		break;
+	case 7:		/* ^G */
+		if (isaway) {
+			away(NULL);
+			dvprintf("you are back!");
+			isaway = 0;
+		} else {
+			away(awaymsg);
+			dvprintf("you are away: %s", awaymsg);
+			isaway = 1;
+		}
+		redraw_screen();
+		break;
 	case 8:		/* ^H */
 	case 127:	/* backspace */
 	case 263:	/* backspace */
@@ -807,6 +840,9 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		}
 		draw_tabs();
 		refresh();
+		break;
+	case 19:	/* ^S */
+		sound = !sound;
 		break;
 	case 20:	/* ^T */
 		if (l > 1) {
@@ -965,6 +1001,8 @@ int init_window()
 {
 	struct tab *tab;
 	int fl;
+
+	awaymsg = strdup("I am away from my computer.");
 
 	initscr();
 	keypad(stdscr, TRUE);
