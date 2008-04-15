@@ -743,6 +743,31 @@ static void send_message()
 	free(x);
 }
 
+static void move_tab(int forward)
+{
+	struct tab *t;
+
+	if (!cur_tab)
+		return;
+
+	t = list_nth(tabs, cur_tab);
+	tabs = list_remove(tabs, t);
+	if (forward) {
+		if (list_length(tabs) == cur_tab)
+			cur_tab = 1;
+		else
+			cur_tab++;
+	} else {
+		if (cur_tab == 1)
+			cur_tab = list_length(tabs);
+		else
+			cur_tab--;
+	}
+	tabs = list_insert(tabs, t, cur_tab - 1);
+	draw_tabs();
+	refresh();
+}
+
 static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 {
 	struct tab *t;
@@ -867,6 +892,17 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		draw_entry();
 		refresh();
 		break;
+	case 27:	/* ESC */
+		c = getch();
+		switch (c) {
+		case 'n':
+			move_tab(1);
+			break;
+		case 'p':
+			move_tab(0);
+			break;
+		}
+		break;
 	case 176:	/* M-0 */
 	case 177:	/* M-1 */
 	case 178:	/* M-2 */
@@ -900,30 +936,10 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		ADD_CHAR(c);
 		break;
 	case 238:	/* M-N */
-		if (cur_tab) {
-			t = list_nth(tabs, cur_tab);
-			tabs = list_remove(tabs, t);
-			if (list_length(tabs) == cur_tab)
-				cur_tab = 1;
-			else
-				cur_tab++;
-			tabs = list_insert(tabs, t, cur_tab - 1);
-			draw_tabs();
-			refresh();
-		}
+		move_tab(1);
 		break;
 	case 240:	/* M-P */
-		if (cur_tab) {
-			t = list_nth(tabs, cur_tab);
-			tabs = list_remove(tabs, t);
-			if (cur_tab == 1)
-				cur_tab = list_length(tabs);
-			else
-				cur_tab--;
-			tabs = list_insert(tabs, t, cur_tab - 1);
-			draw_tabs();
-			refresh();
-		}
+		move_tab(0);
 		break;
 	case 432:
 	case 433:
