@@ -901,6 +901,24 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		case 'p':
 			move_tab(0);
 			break;
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			if (c - '0' < list_length(tabs)) {
+				cur_tab = c - '0';
+				t = list_nth(tabs, cur_tab);
+				t->unseen = 0;
+				draw_tabs();
+				refresh();
+			}
+			break;
 		}
 		break;
 	case 176:	/* M-0 */
