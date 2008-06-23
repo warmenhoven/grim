@@ -160,7 +160,7 @@ void add_buddy(char *name, short gid)
 	if ((int)strlen(b->name) >= max_blwid)
 		max_blwid = strlen(b->name) + 1;
 	b->state = 0;
-	b->stalk = 1;
+	b->stalk = 0;
 	if (notfound) {
 		l = notfound;
 		while (l) {
@@ -705,6 +705,31 @@ static void process_command()
 	}
 }
 
+static char *fix_amp(char *str)
+{
+	static char *rv = NULL;
+	int i, j;
+
+	if (strchr(str, '&') == NULL)
+		return str;
+
+	rv = realloc(rv, strlen(str) * 5 + 1);
+	for (i = 0, j = 0; str[i] != 0; i++) {
+		if (str[i] != '&') {
+			rv[j++] = str[i];
+			continue;
+		}
+		rv[j++] = '&';
+		rv[j++] = 'a';
+		rv[j++] = 'm';
+		rv[j++] = 'p';
+		rv[j++] = ';';
+	}
+
+	rv[j] = '\0';
+	return rv;
+}
+
 static void send_message()
 {
 	struct tab *t;
@@ -735,7 +760,7 @@ static void send_message()
 	t->text = append_text(t->text, x);
 	log_msg(si.displayname, t->title, h);
 
-	send_im(t->title, entry_text);
+	send_im(t->title, fix_amp(entry_text));
 
 	draw_tabs();
 	refresh();
