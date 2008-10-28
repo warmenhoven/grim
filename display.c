@@ -909,6 +909,7 @@ static int stdin_ready(void *nbv, int event, nbio_fd_t *fdt)
 		refresh();
 		break;
 	case 23:	/* ^W */
+	case 255:	/* M-Backspace */
 		c = l - 1;
 		while (c > 0 && isspace(entry_text[c])) c--;
 		while (c + 1 && !isspace(entry_text[c])) c--;
