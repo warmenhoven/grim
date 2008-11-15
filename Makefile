@@ -1,7 +1,8 @@
-TOPDIR = /usr
+NBIODIR = /usr
+FAIMDIR = ../libfaim
 CC = gcc
-LDLIBS = -lcurses $(TOPDIR)/lib/libnbio.a
-CFLAGS += -g3 -O3 -I$(TOPDIR)/include/libnbio -I$(TOPDIR)/include/libfaim -Wall
+LDLIBS = -lcurses $(NBIODIR)/lib/libnbio.a
+CFLAGS += -g3 -O3 -I$(NBIODIR)/include/libnbio -I$(FAIMDIR)/include/libfaim -Wall
 
 OBJS = config.o display.o list.o main.o
 
@@ -9,7 +10,7 @@ ifneq "$(PERF)" ""
 CFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
-AIMLDLIBS += $(TOPDIR)/lib/libfaim.a
+AIMLDLIBS += $(FAIMDIR)/lib/libfaim.a
 AIMOBJS += faim.o
 
 JABBERLDLIBS += -lexpat
