@@ -233,6 +233,7 @@ static void
 jabber_roster_cb()
 {
 	void *query;
+        char presence[1024];
 
 	dvprintf("online");
 
@@ -265,10 +266,10 @@ jabber_roster_cb()
 		}
 	}
 
-	jabber_send("<presence>"
-				  "<status>Online</status>"
-				  "<priority>1</priority>"
-				"</presence>");
+	snprintf(presence, sizeof (presence),
+		 "<presence><status>Online</status><priority>%d</priority></presence>",
+	         si.priority);
+        jabber_send(presence);
 }
 
 static void

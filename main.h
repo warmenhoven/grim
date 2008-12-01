@@ -27,6 +27,7 @@ struct session_info {
 	int jport;
 	char *key;
 	char *resource;
+	int priority;
 
 	int killme;
 };

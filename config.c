@@ -24,6 +24,7 @@ static int defaults()
 	fprintf(f, "jpt 5222\n");
 	fprintf(f, "key password\n");
 	fprintf(f, "res grim\n");
+	fprintf(f, "pri 4\n");
 	fclose(f);
 
 	fprintf(stderr, "Please modify your %s\n", path);
@@ -66,6 +67,8 @@ int read_config()
 				si.jport = atoi(line + 4);
 			} else if (!strncmp(line, "res ", 4)) {
 				si.resource = strdup(line + 4);
+			} else if (!strncmp(line, "pri ", 4)) {
+				si.priority = atoi(line + 4);
 			} else if (!strncmp(line, "user ", 5)) {
 				si.screenname = strdup(line + 5);
 			} else if (!strncmp(line, "pass ", 5)) {
