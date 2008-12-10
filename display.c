@@ -694,6 +694,8 @@ static void process_command()
 		presence(x + 8, 0);
 	} else if (!strcasecmp(x, "debug")) {
 		print_anyway = !print_anyway;
+	} else if (!strncasecmp(x, "priority ", 9 && x[9])) {
+		priority(atoi(x + 9));
 	} else if (!strncasecmp(x, "away ", 5) && x[5]) {
 		free(awaymsg);
 		awaymsg = strdup(&x[5]);

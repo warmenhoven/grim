@@ -54,5 +54,6 @@ extern void send_im(char *, char *);
 extern void presence(char *, int);
 extern void keepalive();
 extern void away(char *);
+extern void priority(int);
 
 #endif

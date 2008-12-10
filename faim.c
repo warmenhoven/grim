@@ -735,3 +735,7 @@ void away(char *msg)
 		aim_bos_setprofile(&sess, aim_getconn_type(&sess, AIM_CONN_TYPE_BOS), NULL, msg, 0);
 	}
 }
+
+void priority(int p)
+{
+}

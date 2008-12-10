@@ -233,7 +233,6 @@ static void
 jabber_roster_cb()
 {
 	void *query;
-        char presence[1024];
 
 	dvprintf("online");
 
@@ -266,10 +265,7 @@ jabber_roster_cb()
 		}
 	}
 
-	snprintf(presence, sizeof (presence),
-		 "<presence><status>Online</status><priority>%d</priority></presence>",
-	         si.priority);
-        jabber_send(presence);
+	priority(si.priority);
 }
 
 static void
@@ -589,8 +585,19 @@ presence(char *to, int avail)
 	free(send);
 }
 
-void away(char *msg)
+void
+away(char *msg)
 {
+}
+
+void
+priority(int p)
+{
+	char presence[1024];
+	snprintf(presence, sizeof (presence),
+		 "<presence><status>Online</status><priority>%d</priority></presence>",
+		 p);
+	jabber_send(presence);
 }
 
 /* vim:set sw=4 ts=4 ai noet cindent tw=80: */
